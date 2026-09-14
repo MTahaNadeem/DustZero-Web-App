@@ -1,5 +1,6 @@
 import { useDustZero } from '../contexts/DustZeroContext';
-import { Power, Octagon } from 'lucide-react';
+import { Power, Octagon, CheckCircle2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 const CleaningControl = () => {
   const { device, isOnline, sendCommand, isLoadingCommand } = useDustZero();
@@ -82,9 +83,32 @@ const CleaningControl = () => {
             <span style={{ fontSize: '1.25rem', fontWeight: 700, color: !isOnline ? 'var(--text-muted)' : 'var(--text-primary)', textAlign: 'center', padding: '0 10px', marginTop: '8px' }}>
               {!isOnline ? '—' : getPhaseName(device?.cleaning_state)}
             </span>
-            <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--accent-green)', marginTop: '12px', lineHeight: 1 }}>
-              {!isOnline ? '—' : `${progress}%`}
-            </span>
+            
+            {(!isOnline || isStopped) ? (
+              <div style={{ marginTop: '16px', color: isOnline ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                <CheckCircle2 size={32} />
+              </div>
+            ) : (
+              <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--accent-green)', marginTop: '12px', lineHeight: 1 }}>
+                {progress}%
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginTop: '40px', width: '100%' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="text-secondary" style={{ fontSize: '0.85rem', marginBottom: '4px' }}>Cycles Today</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              {isOnline ? (device?.cycles_today ?? 0) : '—'}
+            </div>
+          </div>
+          <div style={{ width: '1px', backgroundColor: 'var(--border-subtle)' }}></div>
+          <div style={{ textAlign: 'center' }}>
+            <div className="text-secondary" style={{ fontSize: '0.85rem', marginBottom: '4px' }}>Last Active</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              {isOnline && device?.last_clean_time ? formatDistanceToNow(new Date(device.last_clean_time), { addSuffix: true }) : '—'}
+            </div>
           </div>
         </div>
       </div>

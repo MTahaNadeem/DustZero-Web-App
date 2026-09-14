@@ -20,6 +20,8 @@ export interface Device {
   cleaning_steps: number;
   fault: boolean;
   updated_at: string; // ISO timestamp
+  cycles_today?: number;
+  last_clean_time?: string;
 }
 
 export interface DeviceHistory {

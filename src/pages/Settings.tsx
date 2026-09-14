@@ -4,6 +4,7 @@ import { useDustZero } from '../contexts/DustZeroContext';
 const Settings = () => {
   const { deviceId, setDeviceId } = useDustZero();
   const [tempId, setTempId] = useState(deviceId);
+  const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('dustzero-theme') || 'system');
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -11,7 +12,13 @@ const Settings = () => {
   };
 
   const toggleTheme = (theme: 'dark' | 'light' | 'system') => {
-    document.documentElement.setAttribute('data-theme', theme);
+    setCurrentTheme(theme);
+    if (theme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', systemTheme);
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
     localStorage.setItem('dustzero-theme', theme);
   };
 
@@ -50,12 +57,24 @@ const Settings = () => {
       <div className="card" style={{ marginBottom: '24px' }}>
         <h3 style={{ marginBottom: '20px' }}>Appearance</h3>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-          <button className="btn btn-outline" onClick={() => toggleTheme('dark')}>Dark Mode</button>
-          <button className="btn btn-outline" onClick={() => toggleTheme('light')}>Light Mode</button>
-          <button className="btn btn-outline" onClick={() => {
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            toggleTheme(systemTheme);
-          }}>System Default</button>
+          <button 
+            className={`btn ${currentTheme === 'dark' ? 'btn-primary' : 'btn-outline'}`} 
+            onClick={() => toggleTheme('dark')}
+          >
+            Dark Mode
+          </button>
+          <button 
+            className={`btn ${currentTheme === 'light' ? 'btn-primary' : 'btn-outline'}`} 
+            onClick={() => toggleTheme('light')}
+          >
+            Light Mode
+          </button>
+          <button 
+            className={`btn ${currentTheme === 'system' ? 'btn-primary' : 'btn-outline'}`} 
+            onClick={() => toggleTheme('system')}
+          >
+            System Default
+          </button>
         </div>
       </div>
 
@@ -68,12 +87,16 @@ const Settings = () => {
           Premium dashboard for the Smart Automatic Solar Panel Cleaning System.
         </p>
         <a href="https://github.com" target="_blank" rel="noopener noreferrer" style={{ 
-          color: 'var(--accent-blue)', 
+          color: 'var(--accent-green)', 
           textDecoration: 'none', 
-          fontWeight: 500,
+          fontWeight: 600,
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '8px'
+          gap: '8px',
+          padding: '8px 16px',
+          backgroundColor: 'var(--accent-green-bg)',
+          borderRadius: '8px',
+          transition: 'all 0.2s'
         }}>
           View GitHub Repository
         </a>

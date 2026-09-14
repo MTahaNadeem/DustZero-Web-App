@@ -30,9 +30,16 @@ const Dashboard = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <h2 style={{ margin: 0 }}>Overview</h2>
-        <div className={`status-badge ${isOnline ? 'online' : 'offline'}`}>
-          <span className="status-dot"></span>
-          {isOnline ? 'Online' : 'Offline'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {isOnline && lastUpdated && (
+            <span className="text-muted" style={{ fontSize: '0.85rem' }}>
+              Updated {lastUpdated.replace('about ', '')}
+            </span>
+          )}
+          <div className={`status-badge ${isOnline ? 'online' : 'offline'}`}>
+            <span className="status-dot"></span>
+            {isOnline ? 'Online' : 'Offline'}
+          </div>
         </div>
       </div>
 
@@ -80,15 +87,21 @@ const Dashboard = () => {
             <span className="text-secondary" style={{ fontSize: '0.9rem', fontWeight: 500 }}>Sunlight</span>
             <div style={{ 
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '36px', height: '36px', borderRadius: '10px',
-              backgroundColor: 'var(--accent-amber-bg)'
+              width: '36px', height: '36px', borderRadius: '50%',
+              backgroundColor: isOnline ? 'var(--accent-amber-bg)' : 'var(--bg-elevated)'
             }}>
-              <Sun size={20} color="var(--accent-amber)" />
+              <Sun size={20} color={isOnline ? 'var(--accent-amber)' : 'var(--text-muted)'} />
             </div>
           </div>
           <div style={{ marginTop: 'auto' }}>
             {!isOnline ? (
-              <div style={{ height: '32px', width: '60%', backgroundColor: 'var(--border-subtle)', borderRadius: '4px', opacity: 0.5 }} />
+              <div style={{ 
+                fontSize: '1.75rem', 
+                fontWeight: 700, 
+                color: 'var(--text-muted)',
+                lineHeight: 1,
+                marginBottom: '8px'
+              }}>—</div>
             ) : (
               <div style={{ 
                 fontSize: '1.75rem', 
@@ -111,15 +124,21 @@ const Dashboard = () => {
             <span className="text-secondary" style={{ fontSize: '0.9rem', fontWeight: 500 }}>Weather</span>
             <div style={{ 
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '36px', height: '36px', borderRadius: '10px',
-              backgroundColor: 'var(--accent-blue-bg)'
+              width: '36px', height: '36px', borderRadius: '50%',
+              backgroundColor: isOnline ? 'var(--accent-blue-bg)' : 'var(--bg-elevated)'
             }}>
-              <CloudRain size={20} color="var(--accent-blue)" />
+              <CloudRain size={20} color={isOnline ? 'var(--accent-blue)' : 'var(--text-muted)'} />
             </div>
           </div>
           <div style={{ marginTop: 'auto' }}>
             {!isOnline ? (
-              <div style={{ height: '32px', width: '60%', backgroundColor: 'var(--border-subtle)', borderRadius: '4px', opacity: 0.5 }} />
+              <div style={{ 
+                fontSize: '1.75rem', 
+                fontWeight: 700, 
+                color: 'var(--text-muted)',
+                lineHeight: 1,
+                marginBottom: '8px'
+              }}>—</div>
             ) : (
               <div style={{ 
                 fontSize: '1.75rem', 
@@ -157,7 +176,7 @@ const Dashboard = () => {
           </div>
           <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '12px 16px', borderRadius: '8px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <strong style={{ color: 'var(--text-primary)' }}>Status:</strong>
-            <span style={{ color: conditionsMet ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
+            <span style={{ color: !isOnline ? 'var(--text-muted)' : (conditionsMet ? 'var(--accent-green)' : 'var(--text-secondary)') }}>
               {isOnline ? (conditionsMet ? 'Conditions met (Will clean soon)' : 'Waiting for strong sun, no rain, low power') : 'Unknown'}
             </span>
           </div>
@@ -188,7 +207,7 @@ const Dashboard = () => {
 
       <div style={{ textAlign: 'center', marginTop: '40px', marginBottom: '80px' }}>
         <span className="text-muted" style={{ fontSize: '0.85rem' }}>
-          {isOnline ? `Last updated ${lastUpdated}` : 'Data may be out of date'}
+          {!isOnline && 'Data may be out of date. Reconnecting...'}
         </span>
       </div>
     </div>

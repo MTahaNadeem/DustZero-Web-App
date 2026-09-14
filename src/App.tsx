@@ -18,6 +18,7 @@ const Navigation = () => {
   return (
     <nav className="sidebar">
       <div className="logo-container">
+        <img src="/favicon.png" alt="DustZero Logo" className="logo-icon" />
         <h1>DustZero</h1>
       </div>
       <div className="nav-links">

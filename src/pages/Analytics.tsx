@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import type { DeviceHistory } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { format } from 'date-fns';
+import { Activity } from 'lucide-react';
 
 const Analytics = () => {
   const { deviceId } = useDustZero();
@@ -109,35 +110,23 @@ const Analytics = () => {
         
         <div style={{ display: 'flex', gap: '8px', backgroundColor: 'var(--bg-card)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
           <button 
+            className={`btn ${timeRange === '24h' ? 'btn-ghost active' : 'btn-ghost'}`}
             onClick={() => setTimeRange('24h')}
-            style={{ 
-              background: timeRange === '24h' ? 'var(--bg-elevated)' : 'transparent',
-              color: timeRange === '24h' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
-              transition: 'all var(--transition-speed)'
-            }}
+            style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '0.9rem' }}
           >
             24H
           </button>
           <button 
+            className={`btn ${timeRange === '7d' ? 'btn-ghost active' : 'btn-ghost'}`}
             onClick={() => setTimeRange('7d')}
-            style={{ 
-              background: timeRange === '7d' ? 'var(--bg-elevated)' : 'transparent',
-              color: timeRange === '7d' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
-              transition: 'all var(--transition-speed)'
-            }}
+            style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '0.9rem' }}
           >
             7D
           </button>
           <button 
+            className={`btn ${timeRange === '30d' ? 'btn-ghost active' : 'btn-ghost'}`}
             onClick={() => setTimeRange('30d')}
-            style={{ 
-              background: timeRange === '30d' ? 'var(--bg-elevated)' : 'transparent',
-              color: timeRange === '30d' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
-              transition: 'all var(--transition-speed)'
-            }}
+            style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '0.9rem' }}
           >
             30D
           </button>
@@ -157,19 +146,30 @@ const Analytics = () => {
         </div>
       )}
 
-      {!error && !loading && history.length === 0 && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '80px', color: 'var(--text-muted)' }}>
-          No data available for this time range.
-        </div>
-      )}
-
-      {!error && !loading && history.length > 0 && (
-        <>
+      {!error && !loading && (
+        <div style={{ position: 'relative' }}>
+          {history.length === 0 && (
+            <div style={{ 
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              backgroundColor: 'rgba(22, 21, 19, 0.7)', zIndex: 10, backdropFilter: 'blur(2px)',
+              borderRadius: '16px'
+            }}>
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '32px', borderRadius: '16px', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-lg)', textAlign: 'center', maxWidth: '400px' }}>
+                <Activity size={48} color="var(--text-muted)" style={{ margin: '0 auto 16px auto', opacity: 0.5 }} />
+                <h3 style={{ marginBottom: '8px' }}>No Data Available</h3>
+                <p className="text-secondary" style={{ fontSize: '0.95rem', margin: 0 }}>
+                  Device has been offline or no readings were recorded for this period.
+                </p>
+              </div>
+            </div>
+          )}
+          
           <div className="card" style={{ marginBottom: '24px', height: '320px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '24px', color: 'var(--text-primary)' }}>Solar Power (W)</h3>
-            <div style={{ flex: 1, minHeight: 0 }}>
+            <div style={{ flex: 1, minHeight: 0, opacity: history.length === 0 ? 0.3 : 1 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
+                <AreaChart data={chartData.length > 0 ? chartData : [{timeLabel: '00:00', solar_power: 0}, {timeLabel: '23:59', solar_power: 0}]} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="var(--accent-amber)" stopOpacity={0.5}/>
@@ -189,9 +189,9 @@ const Analytics = () => {
           <div className="grid grid-cols-2" style={{ gap: '24px', marginBottom: '32px' }}>
             <div className="card" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '24px', color: 'var(--text-primary)' }}>Voltage & Current</h3>
-              <div style={{ flex: 1, minHeight: 0 }}>
+              <div style={{ flex: 1, minHeight: 0, opacity: history.length === 0 ? 0.3 : 1 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
+                  <LineChart data={chartData.length > 0 ? chartData : [{timeLabel: '00:00', solar_voltage: 0, solar_current: 0}, {timeLabel: '23:59', solar_voltage: 0, solar_current: 0}]} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                     <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
                     <YAxis yAxisId="left" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={-10} domain={[0, 'auto']} />
@@ -206,9 +206,9 @@ const Analytics = () => {
             
             <div className="card" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '24px', color: 'var(--text-primary)' }}>Temperature (°C)</h3>
-              <div style={{ flex: 1, minHeight: 0 }}>
+              <div style={{ flex: 1, minHeight: 0, opacity: history.length === 0 ? 0.3 : 1 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
+                  <AreaChart data={chartData.length > 0 ? chartData : [{timeLabel: '00:00', temperature: 0}, {timeLabel: '23:59', temperature: 0}]} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
                     <defs>
                       <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="var(--accent-red)" stopOpacity={0.5}/>
@@ -225,7 +225,7 @@ const Analytics = () => {
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

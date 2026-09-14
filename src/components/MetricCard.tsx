@@ -42,7 +42,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           justifyContent: 'center',
           width: '36px', 
           height: '36px', 
-          borderRadius: '10px',
+          borderRadius: '50%',
           ...getBadgeStyle()
         }}>
           {icon}
@@ -51,13 +51,9 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: 'auto' }}>
         {isOffline ? (
-          <div style={{ 
-            height: '32px', 
-            width: '60%', 
-            backgroundColor: 'var(--border-subtle)', 
-            borderRadius: '4px',
-            opacity: 0.5
-          }} />
+          <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-muted)', lineHeight: 1 }}>
+            —
+          </span>
         ) : (
           <>
             <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>

@@ -128,7 +128,10 @@ h4 { font-size: 1.125rem; letter-spacing: -0.015em; }
 .gap-4 { gap: 1rem; }
 .gap-6 { gap: 1.5rem; }
 .grid { display: grid; }
-.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-2 { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 768px) {
+  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .mt-2 { margin-top: 0.5rem; }
 .mt-4 { margin-top: 1rem; }
 .mb-2 { margin-bottom: 0.5rem; }
@@ -192,6 +195,20 @@ h4 { font-size: 1.125rem; letter-spacing: -0.015em; }
   background-color: var(--bg-elevated);
 }
 
+.btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.btn-ghost.active {
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
 /* Layout */
 .app-container {
   display: flex;
@@ -201,7 +218,7 @@ h4 { font-size: 1.125rem; letter-spacing: -0.015em; }
 
 .main-content {
   flex: 1;
-  padding: 24px 20px;
+  padding: 24px 20px 80px 20px;
   overflow-y: auto;
   max-width: 1200px;
   margin: 0 auto;

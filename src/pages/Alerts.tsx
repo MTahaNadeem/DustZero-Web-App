@@ -39,7 +39,7 @@ const Alerts = () => {
       {alerts.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
           <CheckCircle2 size={48} style={{ margin: '0 auto', marginBottom: '16px', opacity: 0.5 }} />
-          <p style={{ margin: 0, fontSize: '1.1rem' }}>No alerts recorded in this session.</p>
+          <p style={{ margin: 0, fontSize: '1.1rem' }}>No active alerts.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

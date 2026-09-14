@@ -83,9 +83,16 @@
   }
 
   .logo-container {
-    display: block;
+    display: flex;
+    align-items: center;
     margin-bottom: 48px;
     padding: 0 12px;
+  }
+  
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    margin-right: 12px;
   }
   
   .logo-container h1 {
@@ -95,6 +102,7 @@
     background: linear-gradient(90deg, var(--text-primary), var(--text-secondary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    margin: 0;
   }
 
   .nav-links {
@@ -109,7 +117,6 @@
     font-size: 0.95rem;
     gap: 16px;
   }
-
   .nav-item:hover {
     background-color: var(--bg-elevated);
     color: var(--text-primary);
