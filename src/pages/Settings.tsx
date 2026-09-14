@@ -17,20 +17,28 @@ const Settings = () => {
 
   return (
     <div>
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '24px' }}>Settings</h2>
+      <h2 style={{ marginBottom: '32px', margin: 0 }}>Settings</h2>
 
       <div className="card" style={{ marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Device Connection</h3>
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <h3 style={{ marginBottom: '20px' }}>Device Connection</h3>
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>
               Device ID
             </label>
             <input 
               type="text" 
               value={tempId}
               onChange={(e) => setTempId(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--bg-elevated)', backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' }}
+              style={{ 
+                width: '100%', 
+                padding: '12px 16px', 
+                borderRadius: '8px', 
+                border: '1px solid var(--border-subtle)', 
+                backgroundColor: 'var(--bg-main)', 
+                color: 'var(--text-primary)',
+                fontSize: '1rem'
+              }}
             />
           </div>
           <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
@@ -40,26 +48,33 @@ const Settings = () => {
       </div>
 
       <div className="card" style={{ marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Appearance</h3>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }} onClick={() => toggleTheme('dark')}>Dark</button>
-          <button className="btn" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }} onClick={() => toggleTheme('light')}>Light</button>
-          <button className="btn" style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }} onClick={() => {
+        <h3 style={{ marginBottom: '20px' }}>Appearance</h3>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <button className="btn btn-outline" onClick={() => toggleTheme('dark')}>Dark Mode</button>
+          <button className="btn btn-outline" onClick={() => toggleTheme('light')}>Light Mode</button>
+          <button className="btn btn-outline" onClick={() => {
             const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             toggleTheme(systemTheme);
-          }}>System</button>
+          }}>System Default</button>
         </div>
       </div>
 
       <div className="card">
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>About DustZero</h3>
-        <p className="text-secondary" style={{ fontSize: '0.9rem', marginBottom: '8px' }}>
+        <h3 style={{ marginBottom: '16px' }}>About DustZero</h3>
+        <p className="text-secondary" style={{ fontSize: '0.95rem', marginBottom: '8px' }}>
           DustZero Web App v1.0.0
         </p>
-        <p className="text-secondary" style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
-          Web dashboard for the Smart Automatic Solar Panel Cleaning System.
+        <p className="text-muted" style={{ fontSize: '0.9rem', marginBottom: '24px' }}>
+          Premium dashboard for the Smart Automatic Solar Panel Cleaning System.
         </p>
-        <a href="https://github.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-blue)', textDecoration: 'none', fontSize: '0.9rem' }}>
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer" style={{ 
+          color: 'var(--accent-blue)', 
+          textDecoration: 'none', 
+          fontWeight: 500,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
           View GitHub Repository
         </a>
       </div>

@@ -28,82 +28,123 @@ const Dashboard = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Overview</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className={`status-dot ${isOnline ? 'status-online' : 'status-offline'}`}></span>
-          <span className="text-secondary" style={{ fontSize: '0.85rem' }}>
-            {isOnline ? 'Online' : 'Offline'}
-          </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+        <h2 style={{ margin: 0 }}>Overview</h2>
+        <div className={`status-badge ${isOnline ? 'online' : 'offline'}`}>
+          <span className="status-dot"></span>
+          {isOnline ? 'Online' : 'Offline'}
         </div>
       </div>
 
       <StatusBanner />
 
-      <div className="grid grid-cols-2" style={{ gap: '16px', marginBottom: '24px' }}>
+      <div className="grid grid-cols-2" style={{ gap: '20px', marginBottom: '32px' }}>
         <MetricCard
           title="Power"
           value={device?.solar_power.toFixed(2) || '0.00'}
           unit="W"
-          icon={<Zap size={18} />}
+          icon={<Zap size={20} />}
           isOffline={!isOnline}
+          accentColor="amber"
         />
         <MetricCard
           title="Voltage"
           value={device?.solar_voltage.toFixed(2) || '0.00'}
           unit="V"
-          icon={<Activity size={18} />}
+          icon={<Activity size={20} />}
           isOffline={!isOnline}
+          accentColor="blue"
         />
         <MetricCard
           title="Current"
           value={device?.solar_current.toFixed(2) || '0.00'}
           unit="A"
-          icon={<Activity size={18} />}
+          icon={<Activity size={20} />}
           isOffline={!isOnline}
+          accentColor="purple"
         />
         <MetricCard
           title="Temperature"
           value={device?.temperature.toFixed(1) || '0.0'}
           unit="°C"
-          icon={<Thermometer size={18} />}
+          icon={<Thermometer size={20} />}
           isOffline={!isOnline}
+          accentColor="red"
         />
       </div>
 
-      <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Environment</h3>
-      <div className="grid grid-cols-2" style={{ gap: '16px', marginBottom: '24px' }}>
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span className="text-secondary" style={{ fontSize: '0.85rem', fontWeight: 500 }}>Sunlight</span>
-            <Sun size={18} color="var(--accent-amber)" />
+      <h3 style={{ marginBottom: '20px' }}>Environment</h3>
+      <div className="grid grid-cols-2" style={{ gap: '20px', marginBottom: '32px' }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="text-secondary" style={{ fontSize: '0.9rem', fontWeight: 500 }}>Sunlight</span>
+            <div style={{ 
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '36px', height: '36px', borderRadius: '10px',
+              backgroundColor: 'var(--accent-amber-bg)'
+            }}>
+              <Sun size={20} color="var(--accent-amber)" />
+            </div>
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 600, color: !isOnline ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
-            {!isOnline ? '—' : (device?.sunlight_level || 'UNKNOWN')}
-          </div>
-          <div className="text-secondary" style={{ fontSize: '0.75rem', marginTop: '4px' }}>
-            {!isOnline ? 'LDR1: — | LDR2: —' : `LDR1: ${device?.ldr1} | LDR2: ${device?.ldr2}`}
+          <div style={{ marginTop: 'auto' }}>
+            {!isOnline ? (
+              <div style={{ height: '32px', width: '60%', backgroundColor: 'var(--border-subtle)', borderRadius: '4px', opacity: 0.5 }} />
+            ) : (
+              <div style={{ 
+                fontSize: '1.75rem', 
+                fontWeight: 700, 
+                color: device?.sunlight_level === 'STRONG' ? 'var(--accent-amber)' : 'var(--text-primary)',
+                lineHeight: 1,
+                marginBottom: '8px'
+              }}>
+                {device?.sunlight_level || 'UNKNOWN'}
+              </div>
+            )}
+            <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+              {!isOnline ? 'LDR: — / —' : `LDR1: ${device?.ldr1} • LDR2: ${device?.ldr2}`}
+            </div>
           </div>
         </div>
         
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span className="text-secondary" style={{ fontSize: '0.85rem', fontWeight: 500 }}>Weather</span>
-            <CloudRain size={18} color="var(--accent-blue)" />
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="text-secondary" style={{ fontSize: '0.9rem', fontWeight: 500 }}>Weather</span>
+            <div style={{ 
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '36px', height: '36px', borderRadius: '10px',
+              backgroundColor: 'var(--accent-blue-bg)'
+            }}>
+              <CloudRain size={20} color="var(--accent-blue)" />
+            </div>
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 600, color: !isOnline ? 'var(--text-secondary)' : (device?.rain_detected ? 'var(--accent-red)' : 'var(--accent-green)') }}>
-            {!isOnline ? '—' : (device?.rain_detected ? 'Rain Detected' : 'Clear')}
+          <div style={{ marginTop: 'auto' }}>
+            {!isOnline ? (
+              <div style={{ height: '32px', width: '60%', backgroundColor: 'var(--border-subtle)', borderRadius: '4px', opacity: 0.5 }} />
+            ) : (
+              <div style={{ 
+                fontSize: '1.75rem', 
+                fontWeight: 700, 
+                color: device?.rain_detected ? 'var(--accent-blue)' : 'var(--accent-green)',
+                lineHeight: 1,
+                marginBottom: '8px'
+              }}>
+                {device?.rain_detected ? 'Rain Detected' : 'Clear'}
+              </div>
+            )}
+             <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+              {!isOnline ? 'Status: —' : (device?.rain_detected ? 'Not safe for cleaning' : 'Safe for cleaning')}
+            </div>
           </div>
         </div>
       </div>
 
-      <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Quick Actions</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <h3 style={{ marginBottom: '20px' }}>Quick Actions</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div>
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Enable Auto Cleaning</div>
-              <div className="text-secondary" style={{ fontSize: '0.85rem' }}>Clears emergency stop and resumes automatic mode.</div>
+              <div style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '4px' }}>Enable Auto Cleaning</div>
+              <div className="text-secondary" style={{ fontSize: '0.9rem' }}>Clears emergency stop and resumes automatic mode.</div>
             </div>
             <button 
               className="btn btn-primary" 
@@ -111,22 +152,27 @@ const Dashboard = () => {
               disabled={!isOnline || isLoadingCommand || (device?.cleaning_state !== 'IDLE' && device?.cleaning_state !== undefined)}
             >
               <Power size={18} />
-              {isLoadingCommand ? 'Sending...' : 'Enable'}
+              {isLoadingCommand ? 'Sending...' : 'Enable System'}
             </button>
           </div>
-          <div style={{ backgroundColor: 'var(--bg-main)', padding: '12px', borderRadius: '8px', fontSize: '0.85rem' }}>
-            <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Cleaning Condition:</strong>
+          <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '12px 16px', borderRadius: '8px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <strong style={{ color: 'var(--text-primary)' }}>Status:</strong>
             <span style={{ color: conditionsMet ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
-              {isOnline ? (conditionsMet ? 'Met (System will clean soon)' : 'Not Met (Waiting for strong sun, no rain, low power)') : 'Unknown'}
+              {isOnline ? (conditionsMet ? 'Conditions met (Will clean soon)' : 'Waiting for strong sun, no rain, low power') : 'Unknown'}
             </span>
           </div>
         </div>
 
-        <div className="card" style={{ borderColor: 'var(--accent-red)', borderWidth: '1px', borderStyle: 'solid' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="card" style={{ 
+          borderColor: 'var(--accent-red)', 
+          borderWidth: '1px', 
+          borderStyle: 'solid',
+          backgroundColor: 'var(--accent-red-bg)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div>
-              <div style={{ fontWeight: 600, color: 'var(--accent-red)' }}>Emergency Stop</div>
-              <div className="text-secondary" style={{ fontSize: '0.85rem' }}>Halts motor immediately.</div>
+              <div style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--accent-red)', marginBottom: '4px' }}>Emergency Stop</div>
+              <div className="text-secondary" style={{ fontSize: '0.9rem' }}>Halts motor immediately.</div>
             </div>
             <button 
               className="btn btn-danger" 
@@ -134,14 +180,14 @@ const Dashboard = () => {
               disabled={!isOnline || isLoadingCommand}
             >
               <Octagon size={18} />
-              {isLoadingCommand ? 'Sending...' : 'Stop'}
+              {isLoadingCommand ? 'Sending...' : 'Emergency Stop'}
             </button>
           </div>
         </div>
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: '32px', marginBottom: '80px' }}>
-        <span className="text-secondary" style={{ fontSize: '0.75rem' }}>
+      <div style={{ textAlign: 'center', marginTop: '40px', marginBottom: '80px' }}>
+        <span className="text-muted" style={{ fontSize: '0.85rem' }}>
           {isOnline ? `Last updated ${lastUpdated}` : 'Data may be out of date'}
         </span>
       </div>

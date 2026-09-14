@@ -63,12 +63,15 @@ const Analytics = () => {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '12px', border: '1px solid var(--bg-card)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-          <p style={{ margin: 0, fontWeight: 600, marginBottom: '8px' }}>{label}</p>
+        <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '16px', border: '1px solid var(--border-subtle)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)' }}>
+          <p style={{ margin: 0, fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)' }}>{label}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ margin: 0, color: entry.color, fontSize: '0.85rem' }}>
-              {entry.name}: {entry.value}
-            </p>
+            <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: entry.color }} />
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                {entry.name}: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{entry.value}</span>
+              </p>
+            </div>
           ))}
         </div>
       );
@@ -78,16 +81,17 @@ const Analytics = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Analytics</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+        <h2 style={{ margin: 0 }}>Analytics</h2>
         
-        <div style={{ display: 'flex', gap: '8px', backgroundColor: 'var(--bg-card)', padding: '4px', borderRadius: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', backgroundColor: 'var(--bg-card)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
           <button 
             onClick={() => setTimeRange('24h')}
             style={{ 
               background: timeRange === '24h' ? 'var(--bg-elevated)' : 'transparent',
               color: timeRange === '24h' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 
+              border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
+              transition: 'all var(--transition-speed)'
             }}
           >
             24H
@@ -97,7 +101,8 @@ const Analytics = () => {
             style={{ 
               background: timeRange === '7d' ? 'var(--bg-elevated)' : 'transparent',
               color: timeRange === '7d' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 
+              border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
+              transition: 'all var(--transition-speed)'
             }}
           >
             7D
@@ -107,7 +112,8 @@ const Analytics = () => {
             style={{ 
               background: timeRange === '30d' ? 'var(--bg-elevated)' : 'transparent',
               color: timeRange === '30d' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 
+              border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
+              transition: 'all var(--transition-speed)'
             }}
           >
             30D
@@ -116,78 +122,84 @@ const Analytics = () => {
       </div>
 
       {error && (
-        <div style={{ backgroundColor: 'var(--accent-amber-dim)', border: '1px solid var(--accent-amber)', padding: '16px', borderRadius: 'var(--border-radius)', marginBottom: '24px' }}>
-          <h3 style={{ color: 'var(--accent-amber)', margin: 0, fontSize: '1rem' }}>Data Unavailable</h3>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: '4px' }}>{error}</p>
+        <div className="card" style={{ backgroundColor: 'var(--accent-amber-bg)', borderColor: 'rgba(245, 158, 11, 0.2)', borderLeft: '4px solid var(--accent-amber)', marginBottom: '24px' }}>
+          <h3 style={{ color: 'var(--accent-amber)', margin: 0, fontSize: '1.05rem' }}>Data Unavailable</h3>
+          <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', marginTop: '8px' }}>{error}</p>
         </div>
       )}
 
       {!error && loading && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '80px', color: 'var(--text-muted)' }}>
           Loading historical data...
         </div>
       )}
 
       {!error && !loading && history.length === 0 && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '80px', color: 'var(--text-muted)' }}>
           No data available for this time range.
         </div>
       )}
 
       {!error && !loading && history.length > 0 && (
         <>
-          <div className="card" style={{ marginBottom: '24px', height: '300px' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '16px', color: 'var(--text-secondary)' }}>Solar Power (W)</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent-amber)" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="var(--accent-amber)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-elevated)" vertical={false} />
-                <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="solar_power" name="Power" stroke="var(--accent-amber)" fillOpacity={1} fill="url(#colorPower)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="grid grid-cols-2" style={{ gap: '16px', marginBottom: '24px' }}>
-            <div className="card" style={{ height: '250px' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '16px', color: 'var(--text-secondary)' }}>Voltage & Current</h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-elevated)" vertical={false} />
-                  <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis yAxisId="left" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line yAxisId="left" type="monotone" dataKey="solar_voltage" name="Voltage (V)" stroke="var(--accent-blue)" dot={false} strokeWidth={2} />
-                  <Line yAxisId="right" type="monotone" dataKey="solar_current" name="Current (A)" stroke="var(--accent-green)" dot={false} strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            
-            <div className="card" style={{ height: '250px' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '16px', color: 'var(--text-secondary)' }}>Temperature (°C)</h3>
+          <div className="card" style={{ marginBottom: '24px', height: '320px', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '24px', color: 'var(--text-primary)' }}>Solar Power (W)</h3>
+            <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
                   <defs>
-                    <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--accent-red)" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="var(--accent-red)" stopOpacity={0}/>
+                    <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--accent-amber)" stopOpacity={0.5}/>
+                      <stop offset="95%" stopColor="var(--accent-amber)" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-elevated)" vertical={false} />
-                  <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis domain={['dataMin - 5', 'dataMax + 5']} stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                  <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={-10} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="temperature" name="Temp" stroke="var(--accent-red)" fillOpacity={1} fill="url(#colorTemp)" />
+                  <Area type="monotone" dataKey="solar_power" name="Power" stroke="var(--accent-amber)" strokeWidth={2} fillOpacity={1} fill="url(#colorPower)" />
                 </AreaChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2" style={{ gap: '24px', marginBottom: '32px' }}>
+            <div className="card" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '24px', color: 'var(--text-primary)' }}>Voltage & Current</h3>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                    <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                    <YAxis yAxisId="left" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={-10} />
+                    <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={10} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line yAxisId="left" type="monotone" dataKey="solar_voltage" name="Voltage (V)" stroke="var(--accent-blue)" dot={false} strokeWidth={2} />
+                    <Line yAxisId="right" type="monotone" dataKey="solar_current" name="Current (A)" stroke="var(--accent-purple)" dot={false} strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            
+            <div className="card" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '24px', color: 'var(--text-primary)' }}>Temperature (°C)</h3>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--accent-red)" stopOpacity={0.5}/>
+                        <stop offset="95%" stopColor="var(--accent-red)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+                    <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                    <YAxis domain={['dataMin - 5', 'dataMax + 5']} stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={-10} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="temperature" name="Temp" stroke="var(--accent-red)" strokeWidth={2} fillOpacity={1} fill="url(#colorTemp)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </>
