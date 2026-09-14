@@ -53,12 +53,35 @@ const Analytics = () => {
     }
   }, [deviceId, timeRange]);
 
-  const chartData = history.map(h => ({
-    ...h,
-    timeLabel: timeRange === '24h' 
-      ? format(new Date(h.recorded_at), 'HH:mm') 
-      : format(new Date(h.recorded_at), 'MMM dd, HH:mm')
-  }));
+  const chartData: any[] = [];
+  
+  for (let i = 0; i < history.length; i++) {
+    const h = history[i];
+    
+    if (i > 0) {
+      const prev = history[i - 1];
+      const prevTime = new Date(prev.recorded_at).getTime();
+      const currTime = new Date(h.recorded_at).getTime();
+      
+      // If gap is more than 6 minutes (360000 ms), insert a gap point
+      if (currTime - prevTime > 360000) {
+        chartData.push({
+          timeLabel: 'Offline',
+          solar_power: null,
+          solar_voltage: null,
+          solar_current: null,
+          temperature: null,
+        });
+      }
+    }
+    
+    chartData.push({
+      ...h,
+      timeLabel: timeRange === '24h' 
+        ? format(new Date(h.recorded_at), 'HH:mm') 
+        : format(new Date(h.recorded_at), 'MMM dd, HH:mm')
+    });
+  }
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -155,9 +178,9 @@ const Analytics = () => {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                   <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                  <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={-10} />
+                  <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={-10} domain={[0, 'auto']} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="solar_power" name="Power" stroke="var(--accent-amber)" strokeWidth={2} fillOpacity={1} fill="url(#colorPower)" />
+                  <Area type="monotone" dataKey="solar_power" name="Power" stroke="var(--accent-amber)" strokeWidth={2} fillOpacity={1} fill="url(#colorPower)" connectNulls={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -171,11 +194,11 @@ const Analytics = () => {
                   <LineChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                     <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                    <YAxis yAxisId="left" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={-10} />
-                    <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={10} />
+                    <YAxis yAxisId="left" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={-10} domain={[0, 'auto']} />
+                    <YAxis yAxisId="right" orientation="right" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={10} domain={[0, 'auto']} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Line yAxisId="left" type="monotone" dataKey="solar_voltage" name="Voltage (V)" stroke="var(--accent-blue)" dot={false} strokeWidth={2} />
-                    <Line yAxisId="right" type="monotone" dataKey="solar_current" name="Current (A)" stroke="var(--accent-purple)" dot={false} strokeWidth={2} />
+                    <Line yAxisId="left" type="monotone" dataKey="solar_voltage" name="Voltage (V)" stroke="var(--accent-blue)" dot={false} strokeWidth={2} connectNulls={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="solar_current" name="Current (A)" stroke="var(--accent-purple)" dot={false} strokeWidth={2} connectNulls={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -196,7 +219,7 @@ const Analytics = () => {
                     <XAxis dataKey="timeLabel" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
                     <YAxis domain={['dataMin - 5', 'dataMax + 5']} stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} dx={-10} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="temperature" name="Temp" stroke="var(--accent-red)" strokeWidth={2} fillOpacity={1} fill="url(#colorTemp)" />
+                    <Area type="monotone" dataKey="temperature" name="Temp" stroke="var(--accent-red)" strokeWidth={2} fillOpacity={1} fill="url(#colorTemp)" connectNulls={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
