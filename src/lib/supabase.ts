@@ -7,4 +7,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables.");
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+export const supabase = createClient(
+  supabaseUrl || 'https://oxgjosjqzlulnfcmqbty.supabase.co',
+  supabaseAnonKey || 'sb_publishable_rJ0CsOL6TB5rHWncEW8ThA_mX6gacNI'
+);
