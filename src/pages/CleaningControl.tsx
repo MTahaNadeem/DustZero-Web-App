@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useDustZero } from '../contexts/DustZeroContext';
 import { Power, Octagon } from 'lucide-react';
 

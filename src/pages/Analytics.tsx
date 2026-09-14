@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDustZero } from '../contexts/DustZeroContext';
 import { supabase } from '../lib/supabase';
-import { DeviceHistory } from '../types';
+import type { DeviceHistory } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { format } from 'date-fns';
 
 const Analytics = () => {
-  const { deviceId, isOnline } = useDustZero();
+  const { deviceId } = useDustZero();
   const [history, setHistory] = useState<DeviceHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h');

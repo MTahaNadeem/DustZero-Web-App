@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDustZero } from '../contexts/DustZeroContext';
 import { StatusBanner } from '../components/StatusBanner';
 import { MetricCard } from '../components/MetricCard';

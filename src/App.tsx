@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import { LayoutDashboard, Activity, Settings as SettingsIcon, Bell, Droplet } from 'lucide-react';
 import { DustZeroProvider, useDustZero } from './contexts/DustZeroContext';

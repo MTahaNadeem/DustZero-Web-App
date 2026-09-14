@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Device, Alert } from '../types';
+import type { Device, Alert } from '../types';
 
 interface DustZeroContextType {
   device: Device | null;
