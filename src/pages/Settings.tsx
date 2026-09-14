@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { useDustZero } from '../contexts/DustZeroContext';
+import { useDustZero, OFFLINE_TIMEOUT_MS } from '../contexts/DustZeroContext';
 import { supabase } from '../lib/supabase';
-import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 
 const Settings = () => {
   const { deviceId, setDeviceId } = useDustZero();
   const [tempId, setTempId] = useState(deviceId);
   const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('dustzero-theme') || 'system');
   const [isConnecting, setIsConnecting] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'network-error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'success' | 'warning' | 'error' | 'network-error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
 
   const handleIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,7 +30,7 @@ const Settings = () => {
     try {
       const { data, error } = await supabase
         .from('devices')
-        .select('device_id')
+        .select('device_id, connected, updated_at')
         .eq('device_id', tempId)
         .single();
 
@@ -44,8 +44,18 @@ const Settings = () => {
         }
       } else if (data) {
         setDeviceId(tempId);
-        setStatus('success');
-        setStatusMessage(`Connected to ${tempId}`);
+        
+        const lastUpdate = new Date(data.updated_at).getTime();
+        const now = new Date().getTime();
+        const isCurrentlyOnline = data.connected && ((now - lastUpdate) < OFFLINE_TIMEOUT_MS);
+        
+        if (isCurrentlyOnline) {
+          setStatus('success');
+          setStatusMessage(`Device ID saved — ${tempId} is online`);
+        } else {
+          setStatus('warning');
+          setStatusMessage(`Device ID saved — ${tempId} is currently offline`);
+        }
         
         setTimeout(() => {
           setStatus('idle');
@@ -120,6 +130,12 @@ const Settings = () => {
             {status === 'success' && (
               <div style={{ color: 'var(--accent-green)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 500 }}>
                 <CheckCircle2 size={18} />
+                {statusMessage}
+              </div>
+            )}
+            {status === 'warning' && (
+              <div style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 500 }}>
+                <Info size={18} />
                 {statusMessage}
               </div>
             )}

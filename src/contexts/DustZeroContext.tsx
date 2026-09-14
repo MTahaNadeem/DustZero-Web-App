@@ -17,7 +17,7 @@ const DustZeroContext = createContext<DustZeroContextType | undefined>(undefined
 
 // In a real app, this might be selected by the user. Hardcoding for the single-device dashboard.
 const DEFAULT_DEVICE_ID = 'dustzero-001';
-const OFFLINE_TIMEOUT_MS = 15000; // 15 seconds (firmware updates ~every 10s)
+export const OFFLINE_TIMEOUT_MS = 15000; // 15 seconds (firmware updates ~every 10s)
 
 export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [deviceId, setDeviceIdState] = useState(localStorage.getItem('dustzero-device-id') || DEFAULT_DEVICE_ID);
