@@ -225,6 +225,14 @@ h4 { font-size: 1.125rem; letter-spacing: -0.015em; }
   width: 100%;
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 @media (min-width: 768px) {
   .app-container {
     flex-direction: row;

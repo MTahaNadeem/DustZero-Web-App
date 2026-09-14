@@ -1,14 +1,63 @@
 import React, { useState } from 'react';
 import { useDustZero } from '../contexts/DustZeroContext';
+import { supabase } from '../lib/supabase';
+import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const Settings = () => {
   const { deviceId, setDeviceId } = useDustZero();
   const [tempId, setTempId] = useState(deviceId);
   const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('dustzero-theme') || 'system');
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'success' | 'error' | 'network-error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTempId(e.target.value);
+    if (status === 'error' || status === 'network-error') {
+      setStatus('idle');
+      setStatusMessage('');
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setDeviceId(tempId);
+    if (!tempId.trim() || isConnecting) return;
+
+    setIsConnecting(true);
+    setStatus('idle');
+    setStatusMessage('');
+
+    try {
+      const { data, error } = await supabase
+        .from('devices')
+        .select('device_id')
+        .eq('device_id', tempId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          setStatus('error');
+          setStatusMessage(`No device found with ID '${tempId}'. Check the ID and try again.`);
+        } else {
+          setStatus('network-error');
+          setStatusMessage("Couldn't reach the server. Check your connection and try again.");
+        }
+      } else if (data) {
+        setDeviceId(tempId);
+        setStatus('success');
+        setStatusMessage(`Connected to ${tempId}`);
+        
+        setTimeout(() => {
+          setStatus('idle');
+          setStatusMessage('');
+        }, 4000);
+      }
+    } catch (err) {
+      setStatus('network-error');
+      setStatusMessage("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const toggleTheme = (theme: 'dark' | 'light' | 'system') => {
@@ -36,21 +85,45 @@ const Settings = () => {
             <input 
               type="text" 
               value={tempId}
-              onChange={(e) => setTempId(e.target.value)}
+              onChange={handleIdChange}
+              disabled={isConnecting}
               style={{ 
                 width: '100%', 
                 padding: '12px 16px', 
                 borderRadius: '8px', 
-                border: '1px solid var(--border-subtle)', 
+                border: `1px solid ${(status === 'error' || status === 'network-error') ? 'var(--accent-red)' : 'var(--border-subtle)'}`, 
                 backgroundColor: 'var(--bg-main)', 
                 color: 'var(--text-primary)',
-                fontSize: '1rem'
+                fontSize: '1rem',
+                opacity: isConnecting ? 0.7 : 1
               }}
             />
+            {(status === 'error' || status === 'network-error') && (
+              <div style={{ color: 'var(--accent-red)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', marginTop: '8px' }}>
+                <AlertCircle size={16} />
+                {statusMessage}
+              </div>
+            )}
           </div>
-          <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
-            Save & Reconnect
-          </button>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start' }} disabled={isConnecting}>
+              {isConnecting ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                'Save & Reconnect'
+              )}
+            </button>
+            {status === 'success' && (
+              <div style={{ color: 'var(--accent-green)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 500 }}>
+                <CheckCircle2 size={18} />
+                {statusMessage}
+              </div>
+            )}
+          </div>
         </form>
       </div>
 

@@ -20,7 +20,13 @@ const DEFAULT_DEVICE_ID = 'dustzero-001';
 const OFFLINE_TIMEOUT_MS = 15000; // 15 seconds (firmware updates ~every 10s)
 
 export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [deviceId, setDeviceId] = useState(DEFAULT_DEVICE_ID);
+  const [deviceId, setDeviceIdState] = useState(localStorage.getItem('dustzero-device-id') || DEFAULT_DEVICE_ID);
+  
+  const setDeviceId = useCallback((id: string) => {
+    localStorage.setItem('dustzero-device-id', id);
+    setDeviceIdState(id);
+  }, []);
+
   const [device, setDevice] = useState<Device | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
