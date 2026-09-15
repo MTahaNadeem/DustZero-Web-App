@@ -56,6 +56,18 @@ select cron.schedule(
 ```
 *(Note the guard clause `updated_at >= now() - interval '1 minute'`: it ensures we do not record stale, offline data into the history table).*
 
+## Configuration
+
+### Supabase Auth URL Configuration
+For email confirmation links to work correctly in both development and production, you must configure the **Redirect URLs** in your Supabase Dashboard:
+
+1. Go to **Authentication** → **URL Configuration**.
+2. Under **Redirect URLs**, add the following URLs:
+   - `http://localhost:5173/**` (for local development)
+   - `https://dust-zero.vercel.app/**` (for production)
+
+*Note: Supabase will reject redirects to any origin not explicitly allow-listed here, regardless of what `emailRedirectTo` is sent in the code.*
+
 ## Development Setup
 
 1. **Install Dependencies**

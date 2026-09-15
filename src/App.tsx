@@ -16,6 +16,7 @@ import CleaningControl from './pages/CleaningControl';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import AuthCallback from './pages/AuthCallback';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import './App.css';
@@ -155,9 +156,21 @@ const Navigation = () => {
 
 // ─── App Content ──────────────────────────────────────────────────────────────
 const AppContent = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Catch auth hashes (e.g., from old emails that went to root instead of /auth/callback)
+    // and redirect them to the AuthCallback route to handle UI and errors gracefully.
+    const hash = window.location.hash;
+    if (hash && (hash.includes('access_token=') || hash.includes('error=')) && window.location.pathname !== '/auth/callback') {
+      navigate(`/auth/callback${hash}`, { replace: true });
+    }
+  }, [navigate]);
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route
         path="/*"
         element={

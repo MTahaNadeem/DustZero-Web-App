@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDustZero } from '../contexts/DustZeroContext';
-import { FaultBanner, OfflineBanner } from '../components/StatusBanner';
+import { OfflineBanner } from '../components/StatusBanner';
 import { PageHeader } from '../components/PageHeader';
 import {
   Power,
@@ -9,9 +9,9 @@ import {
   ArrowDown,
   PauseCircle,
   ArrowUp,
-  Info,
   Activity,
   Circle,
+  Info,
 } from 'lucide-react';
 import type { CleaningState } from '../types';
 
@@ -85,19 +85,17 @@ const isPhaseCompleted = (phase: CleaningState, current: CleaningState | undefin
   return currentIndex > phaseIndex;
 };
 
-// ─── Circular Progress (SVG Animated) ─────────────────────────────────────────
+// ─── Circular Progress (State Indicator) ──────────────────────────────────────
 
 const CircularProgress: React.FC<{
-  progress: number;
   state: CleaningState | undefined;
   isOnline: boolean;
-}> = ({ progress, state, isOnline }) => {
+}> = ({ state, isOnline }) => {
   const accentColor = getPhaseAccentColor(state);
   const radius = 90;
   const stroke = 12;
   const normalizedRadius = radius - stroke * 2;
   const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
 
   return (
     <div
@@ -131,8 +129,9 @@ const CircularProgress: React.FC<{
           strokeLinecap="round"
           strokeDasharray={circumference + ' ' + circumference}
           style={{ 
-            strokeDashoffset: isOnline ? strokeDashoffset : circumference,
+            strokeDashoffset: isOnline && state !== 'IDLE' ? 0 : circumference,
             transition: 'stroke-dashoffset 0.5s ease-in-out',
+            animation: isOnline && state !== 'IDLE' && state !== 'PAUSE_TOP' && state !== 'PAUSE_BOTTOM' ? 'pulse 2s infinite' : 'none',
           }}
           r={normalizedRadius}
           cx={radius}
@@ -151,32 +150,18 @@ const CircularProgress: React.FC<{
         }}
       >
         <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          {state === 'IDLE' ? 'Status' : 'Progress'}
+          Status
         </span>
 
-        {state === 'IDLE' || !isOnline ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '48px' }}>
-            {isOnline ? (
-              <CheckCircle2 size={44} color="var(--accent-green)" />
-            ) : (
-              <Circle size={44} color="var(--text-muted)" strokeWidth={1.5} />
-            )}
-          </div>
-        ) : (
-          <span style={{
-            fontSize: '3rem',
-            fontWeight: 800,
-            color: accentColor,
-            lineHeight: 1,
-            letterSpacing: '-0.04em',
-            fontVariantNumeric: 'tabular-nums',
-            height: '48px',
-            display: 'flex',
-            alignItems: 'center',
-          }}>
-            {progress}%
-          </span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '48px' }}>
+          {isOnline && state === 'IDLE' ? (
+            <CheckCircle2 size={44} color="var(--accent-green)" />
+          ) : isOnline ? (
+            <Activity size={44} color={accentColor} />
+          ) : (
+            <Circle size={44} color="var(--text-muted)" strokeWidth={1.5} />
+          )}
+        </div>
 
         <span style={{
           fontSize: '0.78rem',
@@ -457,13 +442,10 @@ const HowItWorks: React.FC = () => (
   </div>
 );
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 const CleaningControl: React.FC = () => {
   const { device, isOnline } = useDustZero();
 
   const cleaningState = isOnline ? device?.cleaning_state : undefined;
-  const progress = isOnline ? (device?.cleaning_progress ?? 0) : 0;
 
   return (
     <div>
@@ -473,7 +455,6 @@ const CleaningControl: React.FC = () => {
       />
 
       {/* Banners */}
-      <FaultBanner />
       <OfflineBanner />
 
       {/* Main layout: progress + timeline on top */}
@@ -488,31 +469,7 @@ const CleaningControl: React.FC = () => {
       >
         {/* Circular progress card */}
         <div className="card" style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
-          <CircularProgress progress={progress} state={cleaningState} isOnline={isOnline} />
-
-          {/* Stats below progress */}
-          <div
-            style={{
-              width: '100%',
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '32px',
-            }}
-          >
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Cycles Today</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {isOnline ? (device?.cycles_today ?? '—') : '—'}
-              </div>
-            </div>
-            <div style={{ width: '1px', backgroundColor: 'var(--border-subtle)' }} />
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Cleaning Steps</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {isOnline ? (device?.cleaning_steps ?? '—') : '—'}
-              </div>
-            </div>
-          </div>
+          <CircularProgress state={cleaningState} isOnline={isOnline} />
         </div>
 
         {/* Phase timeline card */}

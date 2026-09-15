@@ -65,8 +65,8 @@ const DeviceConnectionSection: React.FC = () => {
           user_id: (await supabase.auth.getSession()).data.session?.user.id,
           connected: false,
           ldr1: 0, ldr2: 0, temperature: 0, solar_voltage: 0, solar_current: 0, solar_power: 0,
-          rain_detected: false, sun_detected: false, sunlight_level: 'WEAK',
-          cleaning_state: 'IDLE', cleaning_progress: 0, cleaning_steps: 0, fault: false,
+          rain_detected: false, sunlight_level: 'WEAK',
+          cleaning_state: 'IDLE',
         }]);
 
         if (insertError) {

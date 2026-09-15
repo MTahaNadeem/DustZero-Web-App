@@ -14,15 +14,9 @@ export interface Device {
   solar_current: number;
   solar_power: number;
   rain_detected: boolean;
-  sun_detected: boolean;
   sunlight_level: SunlightLevel;
   cleaning_state: CleaningState;
-  cleaning_progress: number;
-  cleaning_steps: number;
-  fault: boolean;
   updated_at: string; // ISO timestamp
-  cycles_today?: number;
-  last_clean_time?: string;
 }
 
 export interface DeviceHistory {
@@ -76,7 +70,7 @@ export interface CleaningEvent {
   power_after: number;
   power_delta: number;
   sunlight_level: SunlightLevel;
-  trigger: 'AUTOMATIC' | 'MANUAL';
+  trigger: 'AUTO' | 'MANUAL';
 }
 
 export interface DeviceSettings {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDustZero } from '../contexts/DustZeroContext';
-import { FaultBanner, OfflineBanner } from '../components/StatusBanner';
+import { OfflineBanner } from '../components/StatusBanner';
 import { MetricCard } from '../components/MetricCard';
 import { PageHeader } from '../components/PageHeader';
 import {
@@ -12,8 +12,6 @@ import {
   OctagonX,
   Gauge,
   Activity,
-  CheckCircle2,
-  Circle,
   Percent
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -338,7 +336,6 @@ const EnvironmentCard = () => {
 const CleaningStatusCard = () => {
   const { device, isOnline, sendCommand, isLoadingCommand } = useDustZero();
 
-  const progress = isOnline ? (device?.cleaning_progress ?? 0) : 0;
   const state = isOnline ? device?.cleaning_state : undefined;
   const phaseColor = getPhaseAccent(state);
   const isIdle = state === 'IDLE' || !state;
@@ -384,7 +381,7 @@ const CleaningStatusCard = () => {
             flexShrink: 0,
             borderRadius: '50%',
             background: isOnline
-              ? `conic-gradient(${phaseColor} ${progress}%, var(--bg-card) ${progress}%)`
+              ? phaseColor
               : 'var(--bg-card)',
             display: 'flex',
             alignItems: 'center',
@@ -403,9 +400,7 @@ const CleaningStatusCard = () => {
               justifyContent: 'center',
             }}
           >
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: isOnline ? phaseColor : 'var(--text-muted)' }}>
-              {isOnline ? `${progress}%` : '—'}
-            </span>
+            <Activity size={18} color={isOnline ? phaseColor : 'var(--text-muted)'} />
           </div>
         </div>
 
@@ -416,28 +411,31 @@ const CleaningStatusCard = () => {
           </div>
         </div>
 
-        {/* Status dot */}
-        <div style={{ flexShrink: 0 }}>
-          {isOnline && isIdle && !device?.fault && (
-            <CheckCircle2 size={20} color="var(--accent-green)" />
+        {/* Status Text overlay */}
+        <div className="hero-status">
+          {isOnline && isIdle && (
+            <span style={{ color: 'var(--accent-green)' }}>System Normal &bull; Ready</span>
           )}
           {isOnline && !isIdle && (
-            <Activity size={20} color={phaseColor} />
+            <span style={{ color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Activity size={12} className="animate-pulse" />
+              Cleaning in progress ({device?.cleaning_state})
+            </span>
           )}
           {!isOnline && (
-            <Circle size={20} color="var(--text-muted)" />
+            <span style={{ color: 'var(--text-muted)' }}>No live data available</span>
           )}
         </div>
       </div>
 
-      {/* Progress bar */}
+      {/* Progress bar placeholder */}
       {isOnline && (
         <div style={{ marginBottom: '16px' }}>
           <div style={{ height: '5px', borderRadius: '99px', backgroundColor: 'var(--bg-elevated)', overflow: 'hidden' }}>
             <div
               style={{
                 height: '100%',
-                width: `${progress}%`,
+                width: state !== 'IDLE' ? '100%' : '0%',
                 borderRadius: '99px',
                 backgroundColor: phaseColor,
                 transition: 'width 0.6s ease',
@@ -497,13 +495,13 @@ const PanelHealthCard = () => {
       ok: !isOnline ? null : true,
     },
     {
-      label: 'Controller',
-      value: !isOnline ? 'Offline' : (device?.fault ? 'Fault' : 'Online'),
-      ok: !isOnline ? null : (!device?.fault),
+      label: 'System Status',
+      value: !isOnline ? 'Offline' : 'Online',
+      ok: !isOnline ? null : true,
     },
   ];
 
-  const allGood = isOnline && rows.every((r) => r.ok !== false) && !device?.fault;
+  const allGood = isOnline && rows.every((r) => r.ok !== false);
 
   return (
     <div className="card" style={{ padding: '24px' }}>
@@ -599,7 +597,6 @@ const Dashboard = () => {
       />
 
       {/* Banners */}
-      <FaultBanner />
       <OfflineBanner />
 
       {/* Hero Power Card */}

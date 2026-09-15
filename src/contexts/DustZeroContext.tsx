@@ -85,9 +85,6 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const checkAlerts = useCallback((prev: Device | null, current: Device) => {
     if (!prev) return;
 
-    if (!prev.fault && current.fault) {
-      addAlert("System Fault Detected! Hardware reboot required.", "critical");
-    }
     if (!prev.rain_detected && current.rain_detected) {
       addAlert("Rain detected. Automatic cleaning suspended.", "info");
     }
