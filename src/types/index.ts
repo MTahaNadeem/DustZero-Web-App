@@ -1,7 +1,7 @@
 export type CleaningState = 'IDLE' | 'MOVING_DOWN' | 'PAUSE_BOTTOM' | 'MOVING_UP' | 'PAUSE_TOP';
 export type SunlightLevel = 'WEAK' | 'MEDIUM' | 'STRONG';
 export type CommandStatus = 'PENDING' | 'ACKNOWLEDGED' | 'COMPLETED' | 'FAILED';
-export type CommandType = 'START_CLEANING' | 'STOP_CLEANING';
+export type CommandType = 'START_CLEANING' | 'STOP_CLEANING' | 'START_MANUAL_CLEANING';
 
 export interface Device {
   device_id: string;

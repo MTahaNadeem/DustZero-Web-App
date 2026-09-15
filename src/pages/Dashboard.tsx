@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -334,14 +335,27 @@ const EnvironmentCard = () => {
  * Cleaning status card — compact view for dashboard
  */
 const CleaningStatusCard = () => {
-  const { device, isOnline, sendCommand, isLoadingCommand } = useDustZero();
+  const { device, isOnline, sendCommand, isLoadingCommand, isManualCleaning } = useDustZero();
 
   const state = isOnline ? device?.cleaning_state : undefined;
   const phaseColor = getPhaseAccent(state);
   const isIdle = state === 'IDLE' || !state;
 
+  const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+  const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+  const [isRainBlockedModalOpen, setIsRainBlockedModalOpen] = useState(false);
+
   const handleEnable = () => sendCommand('START_CLEANING');
-  const handleStop = () => sendCommand('STOP_CLEANING');
+  
+  const handleStartManualClick = () => {
+    if (device?.rain_detected) {
+      setIsRainBlockedModalOpen(true);
+    } else {
+      setIsStartModalOpen(true);
+    }
+  };
+  
+  const handleStopClick = () => setIsStopModalOpen(true);
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
@@ -419,7 +433,7 @@ const CleaningStatusCard = () => {
           {isOnline && !isIdle && (
             <span style={{ color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Activity size={12} className="animate-pulse" />
-              Cleaning in progress ({device?.cleaning_state})
+              {isManualCleaning ? 'Manual Cleaning' : 'Cleaning in progress'} ({device?.cleaning_state})
             </span>
           )}
           {!isOnline && (
@@ -446,28 +460,67 @@ const CleaningStatusCard = () => {
       )}
 
       {/* Quick actions */}
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <button
           className="btn btn-primary"
           style={{ flex: 1, padding: '10px 12px', fontSize: '0.85rem' }}
+          onClick={handleStartManualClick}
+          disabled={!isOnline || isLoadingCommand || !isIdle}
+          title="Immediately start a manual cleaning cycle"
+        >
+          <Power size={15} />
+          {isLoadingCommand ? 'Sending…' : 'Start Manual'}
+        </button>
+        <button
+          className="btn"
+          style={{ flex: 1, padding: '10px 12px', fontSize: '0.85rem', backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
           onClick={handleEnable}
           disabled={!isOnline || isLoadingCommand}
           title="Clears emergency stop and arms automatic cleaning mode"
         >
-          <Power size={15} />
-          {isLoadingCommand ? 'Sending…' : 'Enable Auto'}
+          Enable Auto
         </button>
         <button
           className="btn btn-danger"
           style={{ flex: 1, padding: '10px 12px', fontSize: '0.85rem' }}
-          onClick={handleStop}
+          onClick={handleStopClick}
           disabled={!isOnline || isLoadingCommand}
           title="Immediately halt the cleaning mechanism"
         >
           <OctagonX size={15} />
-          {isLoadingCommand ? 'Sending…' : 'E-Stop'}
+          {isLoadingCommand ? 'Sending…' : 'Stop'}
         </button>
       </div>
+
+      {/* Modals */}
+      <ConfirmationModal
+        isOpen={isStartModalOpen}
+        title="Start Manual Cleaning?"
+        description="This will immediately start a solar panel cleaning cycle."
+        confirmLabel="Start Cleaning"
+        onConfirm={() => sendCommand('START_MANUAL_CLEANING')}
+        onCancel={() => setIsStartModalOpen(false)}
+      />
+
+      <ConfirmationModal
+        isOpen={isStopModalOpen}
+        title="Stop Cleaning?"
+        description="Are you sure you want to stop the current cleaning cycle?"
+        confirmLabel="Stop Cleaning"
+        isDestructive={true}
+        onConfirm={() => sendCommand('STOP_CLEANING')}
+        onCancel={() => setIsStopModalOpen(false)}
+      />
+
+      <ConfirmationModal
+        isOpen={isRainBlockedModalOpen}
+        title="Cleaning Blocked"
+        description="Rain has been detected. Cleaning cannot be started while the panel is wet."
+        confirmLabel="OK"
+        cancelLabel=""
+        onConfirm={() => setIsRainBlockedModalOpen(false)}
+        onCancel={() => setIsRainBlockedModalOpen(false)}
+      />
     </div>
   );
 };

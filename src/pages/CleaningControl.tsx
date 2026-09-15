@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDustZero } from '../contexts/DustZeroContext';
 import { OfflineBanner } from '../components/StatusBanner';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { PageHeader } from '../components/PageHeader';
 import {
   Power,
@@ -90,7 +91,8 @@ const isPhaseCompleted = (phase: CleaningState, current: CleaningState | undefin
 const CircularProgress: React.FC<{
   state: CleaningState | undefined;
   isOnline: boolean;
-}> = ({ state, isOnline }) => {
+  isManualCleaning: boolean;
+}> = ({ state, isOnline, isManualCleaning }) => {
   const accentColor = getPhaseAccentColor(state);
   const radius = 90;
   const stroke = 12;
@@ -149,6 +151,21 @@ const CircularProgress: React.FC<{
           zIndex: 1,
         }}
       >
+        {isOnline && state !== 'IDLE' && isManualCleaning && (
+          <div style={{
+            backgroundColor: 'var(--accent-amber-bg)',
+            color: 'var(--accent-amber)',
+            border: '1px solid var(--accent-amber-border)',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            marginBottom: '4px'
+          }}>
+            Manual Cleaning
+          </div>
+        )}
         <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Status
         </span>
@@ -326,11 +343,30 @@ const CleaningConditions: React.FC = () => {
 
 // ─── Control Actions ──────────────────────────────────────────────────────────
 
-const ControlActions: React.FC = () => {
-  const { isOnline, sendCommand, isLoadingCommand } = useDustZero();
+const SystemControls: React.FC = () => {
+  const { device, isOnline, sendCommand, isLoadingCommand } = useDustZero();
+  
+  const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+  const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+  const [isRainBlockedModalOpen, setIsRainBlockedModalOpen] = useState(false);
+  const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
 
-  const handleEnable = () => sendCommand('START_CLEANING');
-  const handleStop = () => sendCommand('STOP_CLEANING');
+  const handleEnableAuto = () => sendCommand('START_CLEANING');
+  
+  const handleStartManualClick = () => {
+    if (!isOnline) {
+      setIsOfflineModalOpen(true);
+    } else if (device?.rain_detected) {
+      setIsRainBlockedModalOpen(true);
+    } else {
+      setIsStartModalOpen(true);
+    }
+  };
+  
+  const handleConfirmStartManual = () => sendCommand('START_MANUAL_CLEANING');
+
+  const handleStopClick = () => setIsStopModalOpen(true);
+  const handleConfirmStop = () => sendCommand('STOP_CLEANING');
 
   return (
     <div className="card" style={{ padding: '24px' }}>
@@ -339,54 +375,65 @@ const ControlActions: React.FC = () => {
         Commands are relayed to the ESP32 controller via Supabase.
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {/* Enable */}
+      {/* Manual Cleaning Section */}
+      <div style={{ marginBottom: '24px' }}>
+        <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Manual Cleaning</h4>
         <button
           className="btn btn-primary btn-lg"
-          onClick={handleEnable}
-          disabled={!isOnline || isLoadingCommand}
-          style={{ width: '100%', justifyContent: 'center' }}
-          aria-label="Enable automatic cleaning mode — clears emergency stop and arms the system"
+          onClick={handleStartManualClick}
+          disabled={isLoadingCommand || (device?.cleaning_state !== 'IDLE' && device?.cleaning_state !== undefined)}
+          style={{ width: '100%', justifyContent: 'center', marginBottom: '8px' }}
+          aria-label="Start manual cleaning cycle"
         >
           <Power size={20} />
-          {isLoadingCommand ? 'Sending command…' : 'Enable Automatic Cleaning'}
+          {isLoadingCommand ? 'Sending command…' : 'START MANUAL CLEANING'}
         </button>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0', textAlign: 'center' }}>
-          Clears emergency stop and arms automatic mode. Cleaning occurs only when conditions are met.
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0', textAlign: 'center' }}>
+          Immediately starts a single cleaning cycle, bypassing automatic conditions.
         </p>
+      </div>
 
-        {/* Separator */}
-        <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
+      <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '16px 0' }} />
 
-        {/* Emergency Stop */}
-        <div
-          style={{
-            border: '1px solid var(--accent-red-border)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '20px',
-            backgroundColor: 'var(--accent-red-bg)',
-          }}
+      {/* Automatic Mode Section */}
+      <div style={{ marginBottom: '24px' }}>
+        <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Automatic Mode</h4>
+        <button
+          className="btn"
+          onClick={handleEnableAuto}
+          disabled={!isOnline || isLoadingCommand}
+          style={{ width: '100%', justifyContent: 'center', backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
         >
-          <div style={{ marginBottom: '14px' }}>
-            <div style={{ fontWeight: 700, color: 'var(--accent-red)', fontSize: '0.95rem', marginBottom: '4px' }}>
-              Emergency Stop
-            </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Immediately halts the cleaning motor and latches the stop state.
-              The system will NOT automatically resume — you must enable it again.
-            </div>
+          Enable Automatic Cleaning
+        </button>
+      </div>
+
+      {/* Emergency Stop */}
+      <div
+        style={{
+          border: '1px solid var(--accent-red-border)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '20px',
+          backgroundColor: 'var(--accent-red-bg)',
+        }}
+      >
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ fontWeight: 700, color: 'var(--accent-red)', fontSize: '0.95rem', marginBottom: '4px' }}>
+            {device?.cleaning_state !== 'IDLE' ? 'Stop Cleaning' : 'Emergency Stop'}
           </div>
-          <button
-            className="btn btn-danger"
-            onClick={handleStop}
-            disabled={!isOnline || isLoadingCommand}
-            style={{ width: '100%', justifyContent: 'center', padding: '13px 20px', fontSize: '0.95rem', fontWeight: 700 }}
-            aria-label="Emergency stop — immediately halts motor and latches stop state"
-          >
-            <OctagonX size={20} />
-            {isLoadingCommand ? 'Sending command…' : 'EMERGENCY STOP'}
-          </button>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Immediately halts the cleaning motor and latches the stop state.
+          </div>
         </div>
+        <button
+          className="btn btn-danger"
+          onClick={handleStopClick}
+          disabled={!isOnline || isLoadingCommand}
+          style={{ width: '100%', justifyContent: 'center', padding: '13px 20px', fontSize: '0.95rem', fontWeight: 700 }}
+        >
+          <OctagonX size={20} />
+          {isLoadingCommand ? 'Stopping…' : 'STOP CLEANING'}
+        </button>
       </div>
 
       {!isOnline && (
@@ -403,6 +450,46 @@ const ControlActions: React.FC = () => {
           Controls disabled — device is offline
         </div>
       )}
+
+      {/* Modals */}
+      <ConfirmationModal
+        isOpen={isStartModalOpen}
+        title="Start Manual Cleaning?"
+        description="This will immediately start a solar panel cleaning cycle. Ensure the cleaning mechanism is clear and safe to operate."
+        confirmLabel="Start Cleaning"
+        onConfirm={handleConfirmStartManual}
+        onCancel={() => setIsStartModalOpen(false)}
+      />
+
+      <ConfirmationModal
+        isOpen={isStopModalOpen}
+        title="Stop Cleaning?"
+        description="Are you sure you want to stop the current cleaning cycle?"
+        confirmLabel="Stop Cleaning"
+        isDestructive={true}
+        onConfirm={handleConfirmStop}
+        onCancel={() => setIsStopModalOpen(false)}
+      />
+
+      <ConfirmationModal
+        isOpen={isRainBlockedModalOpen}
+        title="Cleaning Blocked"
+        description="Rain has been detected. Cleaning cannot be started while the panel is wet."
+        confirmLabel="OK"
+        cancelLabel=""
+        onConfirm={() => setIsRainBlockedModalOpen(false)}
+        onCancel={() => setIsRainBlockedModalOpen(false)}
+      />
+
+      <ConfirmationModal
+        isOpen={isOfflineModalOpen}
+        title="Device Offline"
+        description="DustZero cannot send a cleaning command because the device is currently offline."
+        confirmLabel="Refresh Connection"
+        cancelLabel="Cancel"
+        onConfirm={() => window.location.reload()}
+        onCancel={() => setIsOfflineModalOpen(false)}
+      />
     </div>
   );
 };
@@ -443,7 +530,7 @@ const HowItWorks: React.FC = () => (
 );
 
 const CleaningControl: React.FC = () => {
-  const { device, isOnline } = useDustZero();
+  const { device, isOnline, isManualCleaning } = useDustZero();
 
   const cleaningState = isOnline ? device?.cleaning_state : undefined;
 
@@ -469,7 +556,7 @@ const CleaningControl: React.FC = () => {
       >
         {/* Circular progress card */}
         <div className="card" style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
-          <CircularProgress state={cleaningState} isOnline={isOnline} />
+          <CircularProgress state={cleaningState} isOnline={isOnline} isManualCleaning={isManualCleaning} />
         </div>
 
         {/* Phase timeline card */}
@@ -489,7 +576,7 @@ const CleaningControl: React.FC = () => {
         }}
       >
         <CleaningConditions />
-        <ControlActions />
+        <SystemControls />
       </div>
 
       {/* How it works */}

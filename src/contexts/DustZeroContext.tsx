@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Device, Alert } from '../types';
+import type { Device, Alert, CommandType } from '../types';
 import type { User } from '@supabase/supabase-js';
 
 interface DustZeroContextType {
@@ -10,7 +10,8 @@ interface DustZeroContextType {
   devices: Device[];
   isOnline: boolean;
   alerts: Alert[];
-  sendCommand: (command: 'START_CLEANING' | 'STOP_CLEANING') => Promise<void>;
+  isManualCleaning: boolean;
+  sendCommand: (command: CommandType) => Promise<void>;
   isLoadingCommand: boolean;
   dismissAlert: (id: string) => void;
   deviceId: string;
@@ -39,6 +40,14 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoadingCommand, setIsLoadingCommand] = useState(false);
   
+  const [isManualCleaningState, setIsManualCleaningState] = useState(false);
+  const isManualCleaningRef = useRef(false);
+  
+  const setIsManualCleaning = useCallback((val: boolean) => {
+    isManualCleaningRef.current = val;
+    setIsManualCleaningState(val);
+  }, []);
+
   const previousDeviceRef = useRef<Device | null>(null);
 
   // --- AUTH ---
@@ -92,8 +101,7 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     
     // Check cleaning events to log them (client-side detection for task 3)
     if (prev.cleaning_state === 'IDLE' && current.cleaning_state !== 'IDLE') {
-      addAlert("Cleaning cycle started.", "info");
-      // Could potentially log start time here or rely entirely on end time to fetch previous data
+      addAlert(isManualCleaningRef.current ? "Manual cleaning cycle started." : "Automatic cleaning cycle started.", "info");
     }
     if (prev.cleaning_state !== 'IDLE' && current.cleaning_state === 'IDLE') {
       addAlert("Cleaning cycle completed or stopped.", "info");
@@ -106,12 +114,13 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         power_after: current.solar_power,
         power_delta: current.solar_power - prev.solar_power,
         sunlight_level: current.sunlight_level,
-        trigger: 'AUTOMATIC' // Hard to distinguish from client unless we track recent commands
+        trigger: isManualCleaningRef.current ? 'MANUAL' : 'AUTO'
       }]).then(({ error }) => {
         if (error) console.error("Failed to log cleaning event", error);
       });
+      setIsManualCleaning(false); // Reset manual flag
     }
-  }, [addAlert]);
+  }, [addAlert, setIsManualCleaning]);
 
   const fetchDevices = useCallback(async () => {
     if (!user) return;
@@ -159,8 +168,24 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       if (data) {
-        setDevice(clampDeviceValues(data as Device));
-        previousDeviceRef.current = data as Device;
+        const clamped = clampDeviceValues(data as Device);
+        setDevice(clamped);
+        previousDeviceRef.current = clamped;
+        
+        if (clamped.cleaning_state !== 'IDLE') {
+          // Check if currently manual cleaning
+          const { data: cmdData } = await supabase
+            .from('commands')
+            .select('command, created_at')
+            .eq('device_id', deviceId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+            
+          if (cmdData && cmdData.command === 'START_MANUAL_CLEANING') {
+            setIsManualCleaning(true);
+          }
+        }
       }
     };
 
@@ -182,7 +207,23 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const clamped = clampDeviceValues(updatedDevice);
           
           if (previousDeviceRef.current) {
-            checkAlerts(previousDeviceRef.current, clamped);
+            // If just started, check manual flag
+            if (previousDeviceRef.current.cleaning_state === 'IDLE' && clamped.cleaning_state !== 'IDLE') {
+              supabase.from('commands')
+                .select('command')
+                .eq('device_id', clamped.device_id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+                .then(({ data }) => {
+                   if (data && data.command === 'START_MANUAL_CLEANING') {
+                     setIsManualCleaning(true);
+                   }
+                   checkAlerts(previousDeviceRef.current, clamped);
+                });
+            } else {
+              checkAlerts(previousDeviceRef.current, clamped);
+            }
           }
           
           previousDeviceRef.current = clamped;
@@ -235,10 +276,15 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => clearInterval(interval);
   }, [device, addAlert]);
 
-  const sendCommand = async (command: 'START_CLEANING' | 'STOP_CLEANING') => {
+  const sendCommand = async (command: CommandType) => {
     if (!deviceId) return;
     
     setIsLoadingCommand(true);
+    
+    // Optimistically set manual flag if starting manual
+    if (command === 'START_MANUAL_CLEANING') {
+      setIsManualCleaning(true);
+    }
     
     try {
       const { error } = await supabase
@@ -253,7 +299,9 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (error) throw error;
       
-      addAlert(`Command sent: ${command === 'START_CLEANING' ? 'Enable Auto Cleaning' : 'Emergency Stop'}`, 'info');
+      const cmdName = command === 'START_CLEANING' ? 'Enable Auto Cleaning' : 
+                      command === 'START_MANUAL_CLEANING' ? 'Start Manual Cleaning' : 'Emergency Stop';
+      addAlert(`Command sent: ${cmdName}`, 'info');
       
       // Simulate waiting for acknowledgement (max 13s)
       await new Promise(resolve => setTimeout(resolve, 10000));
@@ -274,6 +322,7 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       devices,
       isOnline,
       alerts,
+      isManualCleaning: isManualCleaningState,
       sendCommand,
       isLoadingCommand,
       dismissAlert,
