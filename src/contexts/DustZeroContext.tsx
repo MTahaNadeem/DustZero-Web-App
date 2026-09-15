@@ -15,6 +15,7 @@ interface DustZeroContextType {
   dismissAlert: (id: string) => void;
   deviceId: string;
   setDeviceId: (id: string) => void;
+  refreshDevices: () => Promise<void>;
 }
 
 const DustZeroContext = createContext<DustZeroContextType | undefined>(undefined);
@@ -112,32 +113,32 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [addAlert]);
 
-  // Fetch devices when user changes
-  useEffect(() => {
+  const fetchDevices = useCallback(async () => {
     if (!user) return;
     
-    const fetchDevices = async () => {
-      const { data, error } = await supabase.from('devices').select('*');
-      if (error) {
-        console.error("Error fetching devices:", error);
-        return;
+    const { data, error } = await supabase.from('devices').select('*').eq('user_id', user.id);
+    if (error) {
+      console.error("Error fetching devices:", error);
+      return;
+    }
+    if (data && data.length > 0) {
+      const clamped = data.map(d => clampDeviceValues(d as Device));
+      setDevices(clamped);
+      
+      // Auto-select if deviceId is empty or not in the list
+      if (!deviceId || !data.find(d => d.device_id === deviceId)) {
+        setDeviceId(data[0].device_id);
       }
-      if (data && data.length > 0) {
-        const clamped = data.map(d => clampDeviceValues(d as Device));
-        setDevices(clamped);
-        
-        // Auto-select if deviceId is empty or not in the list
-        if (!deviceId || !data.find(d => d.device_id === deviceId)) {
-          setDeviceId(data[0].device_id);
-        }
-      } else {
-        setDevices([]);
-        setDevice(null);
-      }
-    };
-    
-    fetchDevices();
+    } else {
+      setDevices([]);
+      setDevice(null);
+    }
   }, [user, deviceId, setDeviceId]);
+
+  // Fetch devices when user changes
+  useEffect(() => {
+    fetchDevices();
+  }, [fetchDevices]);
 
   useEffect(() => {
     if (!user || !deviceId) {
@@ -277,7 +278,8 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       isLoadingCommand,
       dismissAlert,
       deviceId,
-      setDeviceId
+      setDeviceId,
+      refreshDevices: fetchDevices
     }}>
       {children}
     </DustZeroContext.Provider>

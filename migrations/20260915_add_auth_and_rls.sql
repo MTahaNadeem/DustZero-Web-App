@@ -8,11 +8,12 @@ ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
 -- Allow authenticated users to view and update their own devices
 CREATE POLICY "Users can view own devices" ON devices
     FOR SELECT TO authenticated
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE POLICY "Users can update own devices" ON devices
     FOR UPDATE TO authenticated
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = user_id OR user_id IS NULL)
+    WITH CHECK (auth.uid() = user_id);
 
 -- Allow anonymous role (ESP32) to update its own row by device_id
 -- We cannot use auth.uid() since it's anonymous, so we allow update if the row exists.

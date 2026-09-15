@@ -19,7 +19,7 @@ import { PageHeader } from '../components/PageHeader';
 // ─── Device Connection Section ────────────────────────────────────────────────
 
 const DeviceConnectionSection: React.FC = () => {
-  const { deviceId, setDeviceId, devices } = useDustZero();
+  const { deviceId, setDeviceId, devices, refreshDevices } = useDustZero();
   const [tempId, setTempId] = useState(deviceId);
   const [isConnecting, setIsConnecting] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'warning' | 'error' | 'network-error'>('idle');
@@ -73,29 +73,53 @@ const DeviceConnectionSection: React.FC = () => {
            setStatus('error');
            setStatusMessage(`Cannot claim device '${tempId.trim()}'. It may be owned by another user.`);
         } else {
+           await refreshDevices();
            setDeviceId(tempId.trim());
            setStatus('success');
            setStatusMessage(`Device ${tempId.trim()} added successfully.`);
         }
       } else {
-        setDeviceId(tempId.trim());
+        const currentUserId = (await supabase.auth.getSession()).data.session?.user.id;
+        
+        if (data.user_id === null) {
+          // Device exists but is unclaimed. Claim it!
+          const { error: updateError } = await supabase
+            .from('devices')
+            .update({ user_id: currentUserId })
+            .eq('device_id', tempId.trim());
 
-        const lastUpdate = new Date(data.updated_at).getTime();
-        const now = Date.now();
-        const isCurrentlyOnline = data.connected && (now - lastUpdate) < OFFLINE_TIMEOUT_MS;
-
-        if (isCurrentlyOnline) {
+          if (updateError) {
+            setStatus('error');
+            setStatusMessage(`Cannot claim device '${tempId.trim()}'. It may be owned by another user.`);
+            return;
+          }
+          
+          await refreshDevices();
+          setDeviceId(tempId.trim());
           setStatus('success');
-          setStatusMessage(`Device selected — ${tempId.trim()} is currently online.`);
+          setStatusMessage(`Device ${tempId.trim()} claimed successfully.`);
         } else {
-          setStatus('warning');
-          setStatusMessage(`Device selected — ${tempId.trim()} is currently offline.`);
-        }
+          // Device is already ours
+          await refreshDevices();
+          setDeviceId(tempId.trim());
 
-        setTimeout(() => {
-          setStatus('idle');
-          setStatusMessage('');
-        }, 5000);
+          const lastUpdate = new Date(data.updated_at).getTime();
+          const now = Date.now();
+          const isCurrentlyOnline = data.connected && (now - lastUpdate) < OFFLINE_TIMEOUT_MS;
+
+          if (isCurrentlyOnline) {
+            setStatus('success');
+            setStatusMessage(`Device selected — ${tempId.trim()} is currently online.`);
+          } else {
+            setStatus('warning');
+            setStatusMessage(`Device selected — ${tempId.trim()} is currently offline.`);
+          }
+
+          setTimeout(() => {
+            setStatus('idle');
+            setStatusMessage('');
+          }, 5000);
+        }
       }
     } catch {
       setStatus('network-error');
