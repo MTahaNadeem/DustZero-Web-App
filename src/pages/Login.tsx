@@ -1,20 +1,34 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
-  const [showUnconfirmedResend, setShowUnconfirmedResend] = useState(false);
+  
+  // Controls if we show the "Didn't get the email?" section
+  const [showResendAction, setShowResendAction] = useState(false);
+  
   const navigate = useNavigate();
+  const location = useLocation();
 
-  React.useEffect(() => {
+  useEffect(() => {
+    // If we routed here with a success message (e.g., from ResetPassword)
+    if (location.state?.message) {
+      setMessage(location.state.message);
+      // Clean up the state so it doesn't persist on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     if (cooldown > 0) {
       timer = setTimeout(() => setCooldown(c => c - 1), 1000);
@@ -24,11 +38,11 @@ const Login: React.FC = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (cooldown > 0) return;
+    if (cooldown > 0 && isSignUp) return;
     setLoading(true);
     setError(null);
     setMessage(null);
-    setShowUnconfirmedResend(false);
+    setShowResendAction(false);
 
     try {
       if (isSignUp) {
@@ -40,7 +54,9 @@ const Login: React.FC = () => {
           },
         });
         if (signUpError) throw signUpError;
-        setMessage('Check your email for the confirmation link.');
+        setMessage('Check your inbox to confirm your email.');
+        // Show the resend action for post-signup
+        setShowResendAction(true);
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -51,11 +67,11 @@ const Login: React.FC = () => {
       }
     } catch (err: any) {
       if (err.status === 429 || err.message?.toLowerCase().includes('rate limit') || err.message?.toLowerCase().includes('too many requests')) {
-        setError('Please wait a moment before requesting another email.');
+        setError('Please wait a moment before trying again.');
         if (isSignUp) setCooldown(60);
-      } else if (err.message === 'Email not confirmed') {
+      } else if (err.message === 'Email not confirmed' || err.message?.toLowerCase().includes('email not confirmed')) {
         setError('Your email has not been confirmed yet.');
-        setShowUnconfirmedResend(true);
+        setShowResendAction(true);
       } else {
         setError(err.message || 'An error occurred during authentication.');
       }
@@ -73,11 +89,17 @@ const Login: React.FC = () => {
     setError(null);
     setMessage(null);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      });
       if (error) throw error;
       setMessage('Password reset link sent to your email.');
     } catch (err: any) {
-      setError(err.message);
+      if (err.status === 429 || err.message?.toLowerCase().includes('rate limit')) {
+        setError('Please wait a moment before requesting another reset email.');
+      } else {
+        setError(err.message || 'Something went wrong.');
+      }
     } finally {
       setLoading(false);
     }
@@ -102,7 +124,6 @@ const Login: React.FC = () => {
       });
       if (error) throw error;
       setMessage('Confirmation email sent — check your inbox.');
-      setShowUnconfirmedResend(false);
       setCooldown(60);
     } catch (err: any) {
       if (err.status === 429 || err.message?.toLowerCase().includes('rate limit') || err.message?.toLowerCase().includes('too many requests')) {
@@ -119,23 +140,24 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="login-container animate-fade-in">
-      <div className="login-card">
-        <div className="login-header">
-          <img src="/DustZeroIcon.png" alt="DustZero Logo" className="login-logo" />
-          <h2>DustZero</h2>
-          <p>Smart Solar Panel Cleaning System</p>
+    <div className="auth-layout animate-fade-in">
+      <div className="auth-card">
+        <div className="auth-header">
+          <img src="/DustZeroIcon.png" alt="DustZero Logo" className="auth-logo" />
+          <h2 className="auth-title">DustZero</h2>
+          <p className="auth-subtitle">Smart Solar Panel Cleaning System</p>
         </div>
 
-        <form onSubmit={handleAuth} className="login-form">
+        <form onSubmit={handleAuth} className="auth-form">
           {error && (
-            <div className="login-alert error">
-              <AlertCircle size={16} />
+            <div className="auth-alert error">
+              <AlertCircle size={16} className="flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
           {message && (
-            <div className="login-alert success">
+            <div className="auth-alert success">
+              <CheckCircle size={16} className="flex-shrink-0" />
               <span>{message}</span>
             </div>
           )}
@@ -161,76 +183,76 @@ const Login: React.FC = () => {
               <Lock size={18} className="input-icon" />
               <input
                 id="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                minLength={6}
+                style={{ paddingRight: '40px' }}
               />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
           <button 
             type="submit" 
-            className="btn btn-primary login-btn" 
+            className="btn btn-primary" 
+            style={{ width: '100%', marginTop: '4px' }}
             disabled={loading || (isSignUp && cooldown > 0)}
           >
-            {loading ? 'Processing...' : isSignUp ? (cooldown > 0 ? `Wait ${cooldown}s` : 'Sign Up') : 'Sign In'}
+            {loading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Sign In'}
           </button>
         </form>
 
-        <div className="login-footer">
-          {showUnconfirmedResend && !isSignUp && (
-            <div style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-              <p style={{ marginBottom: '0.5rem', fontSize: '0.875rem' }}>Didn't get the email?</p>
+        <div className="auth-footer">
+          {showResendAction && (
+            <div className="resend-action-box">
+              <p style={{ marginBottom: '0.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Didn't get the email?</p>
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-outline"
                 onClick={handleResendConfirmation}
                 disabled={loading || cooldown > 0}
-                style={{ width: '100%', padding: '0.5rem' }}
+                style={{ width: '100%' }}
               >
                 {cooldown > 0 ? `Wait ${cooldown}s` : 'Resend confirmation'}
               </button>
             </div>
           )}
 
-          <button
-            type="button"
-            className="text-btn"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError(null);
-              setMessage(null);
-            }}
-          >
-            {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
-          </button>
-          
-          {!isSignUp && (
-            <>
+          <div className="auth-links-row">
+            <button
+              type="button"
+              className="auth-link accent"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError(null);
+                setMessage(null);
+                setShowResendAction(false);
+              }}
+            >
+              {isSignUp ? 'Sign In Instead' : 'Need an account?'}
+            </button>
+            
+            {!isSignUp && (
               <button
                 type="button"
-                className="text-btn"
+                className="auth-link"
                 onClick={handleResetPassword}
                 disabled={loading}
-                style={{ marginTop: '0.5rem' }}
               >
                 Forgot Password?
               </button>
-              {!showUnconfirmedResend && (
-                <button
-                  type="button"
-                  className="text-btn"
-                  onClick={handleResendConfirmation}
-                  disabled={loading || cooldown > 0}
-                  style={{ marginTop: '0.5rem' }}
-                >
-                  {cooldown > 0 ? `Wait ${cooldown}s to Resend` : 'Resend Confirmation Email'}
-                </button>
-              )}
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

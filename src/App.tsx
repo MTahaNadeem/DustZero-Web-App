@@ -17,11 +17,12 @@ import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
+import ResetPassword from './pages/ResetPassword';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import './App.css';
 
-// ─── Theme initializer ────────────────────────────────────────────────────────
+// ✨ Theme initializer ✨
 // Reads the persisted theme preference and applies it on first render.
 function ThemeInitializer() {
   useEffect(() => {
@@ -36,7 +37,7 @@ function ThemeInitializer() {
   return null;
 }
 
-// ─── Navigation ───────────────────────────────────────────────────────────────
+// ✨ Navigation ✨
 const Navigation = () => {
   const { alerts, device, isOnline, deviceId } = useDustZero();
   const unreadCount = alerts.filter((a) => !a.read).length;
@@ -154,7 +155,7 @@ const Navigation = () => {
   );
 };
 
-// ─── App Content ──────────────────────────────────────────────────────────────
+// ✨ App Content ✨
 const AppContent = () => {
   const navigate = useNavigate();
 
@@ -171,6 +172,7 @@ const AppContent = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/*"
         element={
@@ -196,7 +198,7 @@ const AppContent = () => {
   );
 };
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
+// ✨ Root ✨
 function App() {
   return (
     <DustZeroProvider>

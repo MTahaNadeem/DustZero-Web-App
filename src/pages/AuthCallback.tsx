@@ -23,21 +23,27 @@ const AuthCallback: React.FC = () => {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      // Supabase appends error info in the URL hash for implicit grants
-      // e.g. #error=access_denied&error_code=otp_expired&error_description=...
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      // Supabase appends auth info in the URL hash for implicit grants
+      // e.g. #access_token=...&refresh_token=...&type=...
+      // or #error=access_denied&error_code=otp_expired&error_description=...
+      const hash = window.location.hash.substring(1);
+      const hashParams = new URLSearchParams(hash);
       const searchParams = new URLSearchParams(window.location.search);
       
       const err = hashParams.get('error') || searchParams.get('error');
       const errDesc = hashParams.get('error_description') || searchParams.get('error_description');
+      const type = hashParams.get('type') || searchParams.get('type');
 
       if (err) {
         if (err === 'access_denied' && hashParams.get('error_code') === 'otp_expired') {
-          setError('This confirmation link has expired.');
+          setError('This confirmation link has expired or was already used.');
           setIsExpired(true);
         } else {
           setError(errDesc ? decodeURIComponent(errDesc.replace(/\+/g, ' ')) : 'An error occurred during authentication.');
         }
+        
+        // Strip the hash so it doesn't stay in the URL
+        window.history.replaceState(null, '', window.location.pathname);
         return;
       }
 
@@ -46,23 +52,35 @@ const AuthCallback: React.FC = () => {
       
       if (sessionError) {
         setError(sessionError.message);
+        window.history.replaceState(null, '', window.location.pathname);
         return;
       }
 
       if (session) {
+        // Clear sensitive tokens from the URL
+        window.history.replaceState(null, '', window.location.pathname);
         setSuccess(true);
-        // Redirect after a short delay so user sees the success message
+        
+        // Redirect to appropriate page based on link type
         setTimeout(() => {
-          navigate('/', { replace: true });
+          if (type === 'recovery') {
+            navigate('/reset-password', { replace: true });
+          } else {
+            navigate('/', { replace: true });
+          }
         }, 2000);
       } else {
-        // If there's no session and no explicit error, we might just be waiting for 
-        // Supabase to process the URL. We'll listen for auth state changes.
+        // If there's no session and no explicit error, wait for Supabase to process it
         const { data: authListener } = supabase.auth.onAuthStateChange((event, newSession) => {
           if (event === 'SIGNED_IN' && newSession) {
+            window.history.replaceState(null, '', window.location.pathname);
             setSuccess(true);
             setTimeout(() => {
-              navigate('/', { replace: true });
+              if (type === 'recovery') {
+                navigate('/reset-password', { replace: true });
+              } else {
+                navigate('/', { replace: true });
+              }
             }, 2000);
           }
         });
@@ -99,7 +117,7 @@ const AuthCallback: React.FC = () => {
 
       if (resendError) throw resendError;
       
-      setMessage('Confirmation email sent — check your inbox.');
+      setMessage('Confirmation email sent - check your inbox.');
       setCooldown(60);
       setIsExpired(false);
     } catch (err: any) {
@@ -117,40 +135,46 @@ const AuthCallback: React.FC = () => {
   };
 
   return (
-    <div className="login-container animate-fade-in">
-      <div className="login-card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
-        <img src="/DustZeroIcon.png" alt="DustZero Logo" className="login-logo" style={{ margin: '0 auto 1.5rem' }} />
+    <div className="auth-layout animate-fade-in">
+      <div className="auth-card" style={{ textAlign: 'center' }}>
+        <div className="auth-header">
+          <img src="/DustZeroIcon.png" alt="DustZero Logo" className="auth-logo" />
+          <h2 className="auth-title">DustZero</h2>
+          <p className="auth-subtitle">Smart Solar Panel Cleaning System</p>
+        </div>
         
         {message && (
-          <div className="login-alert success" style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
+          <div className="auth-alert success" style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
+            <CheckCircle size={16} className="flex-shrink-0" />
             <span>{message}</span>
           </div>
         )}
 
         {error ? (
-          <>
-            <XCircle size={48} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-            <h2 style={{ marginBottom: '1rem', color: '#ef4444' }}>Authentication Error</h2>
-            <p style={{ marginBottom: '1.5rem' }}>{error}</p>
+          <div className="flex flex-col items-center">
+            <XCircle size={48} color="var(--accent-red)" style={{ marginBottom: '1rem' }} />
+            <h2 style={{ marginBottom: '0.5rem', color: 'var(--accent-red)', fontSize: '1.25rem', fontWeight: 600 }}>Authentication Error</h2>
+            <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>{error}</p>
             
             {isExpired && (
-              <div style={{ marginBottom: '2rem', textAlign: 'left' }}>
-                <label htmlFor="email" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Confirm your email to resend link</label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="input-with-icon"
-                  style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', marginBottom: '1rem' }}
-                  required
-                />
+              <div style={{ width: '100%', marginBottom: '1.5rem', textAlign: 'left' }}>
+                <div className="input-group">
+                  <label htmlFor="email">Confirm your email to resend link</label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="input"
+                    required
+                  />
+                </div>
                 <button 
                   className="btn btn-primary" 
                   onClick={handleResend}
                   disabled={loading || cooldown > 0 || !email}
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', marginTop: '1rem' }}
                 >
                   {loading ? 'Processing...' : cooldown > 0 ? `Wait ${cooldown}s` : 'Resend confirmation email'}
                 </button>
@@ -159,25 +183,25 @@ const AuthCallback: React.FC = () => {
 
             {!isExpired && (
               <button 
-                className="btn btn-secondary" 
+                className="btn btn-outline" 
                 onClick={() => navigate('/login')}
                 style={{ width: '100%' }}
               >
                 Return to Login
               </button>
             )}
-          </>
+          </div>
         ) : success ? (
-          <>
-            <CheckCircle size={48} color="#10b981" style={{ margin: '0 auto 1rem' }} />
-            <h2 style={{ marginBottom: '1rem', color: '#10b981' }}>Email Confirmed!</h2>
-            <p>Your account has been successfully verified. Redirecting to dashboard...</p>
-          </>
+          <div className="flex flex-col items-center">
+            <CheckCircle size={48} color="var(--accent-green)" style={{ marginBottom: '1rem' }} />
+            <h2 style={{ marginBottom: '0.5rem', color: 'var(--accent-green)', fontSize: '1.25rem', fontWeight: 600 }}>Email Confirmed!</h2>
+            <p style={{ color: 'var(--text-secondary)' }}>Your account has been successfully verified. Redirecting to dashboard...</p>
+          </div>
         ) : (
-          <>
-            <h2 style={{ marginBottom: '1rem' }}>Verifying...</h2>
-            <p>Please wait while we confirm your email address.</p>
-          </>
+          <div className="flex flex-col items-center">
+            <h2 style={{ marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>Verifying...</h2>
+            <p style={{ color: 'var(--text-secondary)' }}>Please wait while we confirm your email address.</p>
+          </div>
         )}
       </div>
     </div>
