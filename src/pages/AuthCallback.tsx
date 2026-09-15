@@ -14,7 +14,7 @@ const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
     if (cooldown > 0) {
       timer = setTimeout(() => setCooldown(c => c - 1), 1000);
     }

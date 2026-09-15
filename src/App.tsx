@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Activity,
