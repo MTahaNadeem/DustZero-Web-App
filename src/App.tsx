@@ -15,6 +15,8 @@ import Analytics from './pages/Analytics';
 import CleaningControl from './pages/CleaningControl';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
+import Login from './pages/Login';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 import './App.css';
 
@@ -133,13 +135,15 @@ const Navigation = () => {
           <div className="sidebar-footer-device">
             <div className={`sidebar-footer-dot ${isOnline ? 'online' : 'offline'}`} />
             <div className="sidebar-footer-info">
-              <div className="sidebar-footer-id">{deviceId}</div>
+              <div className="sidebar-footer-id">{deviceId || 'No device'}</div>
               <div className="sidebar-footer-status">
-                {isOnline
-                  ? lastUpdate
-                    ? `Updated ${lastUpdate.replace('about ', '')}`
-                    : 'Device online'
-                  : 'Device offline'}
+                {!deviceId 
+                  ? 'Select a device'
+                  : isOnline
+                    ? lastUpdate
+                      ? `Updated ${lastUpdate.replace('about ', '')}`
+                      : 'Device online'
+                    : 'Device offline'}
               </div>
             </div>
           </div>
@@ -152,20 +156,30 @@ const Navigation = () => {
 // ─── App Content ──────────────────────────────────────────────────────────────
 const AppContent = () => {
   return (
-    <div className="app-container">
-      <Navigation />
-      <main className="main-content" id="main-content">
-        <div className="page-inner animate-fade-in">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/control" element={<CleaningControl />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
-        </div>
-      </main>
-    </div>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <div className="app-container">
+              <Navigation />
+              <main className="main-content" id="main-content">
+                <div className="page-inner animate-fade-in">
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/control" element={<CleaningControl />} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/alerts" element={<Alerts />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Routes>
+                </div>
+              </main>
+            </div>
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   );
 };
 

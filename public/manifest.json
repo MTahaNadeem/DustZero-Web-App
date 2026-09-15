@@ -1,0 +1,23 @@
+{
+  "name": "DustZero — Smart Solar Panel Cleaning System",
+  "short_name": "DustZero",
+  "description": "Smart Automatic Solar Panel Cleaning System.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#161513",
+  "theme_color": "#201F1C",
+  "icons": [
+    {
+      "src": "/DustZeroIcon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/DustZeroIcon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -85,7 +85,7 @@ const isPhaseCompleted = (phase: CleaningState, current: CleaningState | undefin
   return currentIndex > phaseIndex;
 };
 
-// ─── Circular Progress ────────────────────────────────────────────────────────
+// ─── Circular Progress (SVG Animated) ─────────────────────────────────────────
 
 const CircularProgress: React.FC<{
   progress: number;
@@ -93,6 +93,11 @@ const CircularProgress: React.FC<{
   isOnline: boolean;
 }> = ({ progress, state, isOnline }) => {
   const accentColor = getPhaseAccentColor(state);
+  const radius = 90;
+  const stroke = 12;
+  const normalizedRadius = radius - stroke * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
 
   return (
     <div
@@ -100,38 +105,57 @@ const CircularProgress: React.FC<{
         position: 'relative',
         width: '220px',
         height: '220px',
-        borderRadius: '50%',
-        background: isOnline
-          ? `conic-gradient(${accentColor} ${progress}%, var(--bg-elevated) ${progress}%)`
-          : 'var(--bg-elevated)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
       }}
     >
-      {/* Inner disc */}
+      <svg
+        height={radius * 2}
+        width={radius * 2}
+        style={{ transform: 'rotate(-90deg)', position: 'absolute' }}
+      >
+        <circle
+          stroke="var(--bg-elevated)"
+          fill="transparent"
+          strokeWidth={stroke}
+          r={normalizedRadius}
+          cx={radius}
+          cy={radius}
+        />
+        <circle
+          stroke={isOnline ? accentColor : 'var(--text-muted)'}
+          fill="transparent"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference + ' ' + circumference}
+          style={{ 
+            strokeDashoffset: isOnline ? strokeDashoffset : circumference,
+            transition: 'stroke-dashoffset 0.5s ease-in-out',
+          }}
+          r={normalizedRadius}
+          cx={radius}
+          cy={radius}
+        />
+      </svg>
+      {/* Inner Info */}
       <div
         style={{
-          position: 'absolute',
-          width: '188px',
-          height: '188px',
-          borderRadius: '50%',
-          backgroundColor: 'var(--bg-card)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           gap: '8px',
+          zIndex: 1,
         }}
       >
         <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {state === 'IDLE' ? 'Status' : 'Progress'}
         </span>
 
-        {/* Progress % or IDLE icon */}
         {state === 'IDLE' || !isOnline ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '48px' }}>
             {isOnline ? (
               <CheckCircle2 size={44} color="var(--accent-green)" />
             ) : (
@@ -146,12 +170,14 @@ const CircularProgress: React.FC<{
             lineHeight: 1,
             letterSpacing: '-0.04em',
             fontVariantNumeric: 'tabular-nums',
+            height: '48px',
+            display: 'flex',
+            alignItems: 'center',
           }}>
-            {progress}
+            {progress}%
           </span>
         )}
 
-        {/* Phase name */}
         <span style={{
           fontSize: '0.78rem',
           fontWeight: 600,

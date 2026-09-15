@@ -14,7 +14,9 @@ import {
   Activity,
   CheckCircle2,
   Circle,
+  Percent
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -148,6 +150,99 @@ const HeroPowerCard = () => {
       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
         {!isOnline ? 'No live data — device is offline' : 'Current solar panel output'}
       </p>
+    </div>
+  );
+};
+
+/**
+ * Panel Efficiency Card - compares current power to clean baseline
+ */
+const PanelEfficiencyCard = () => {
+  const { device, isOnline, deviceId } = useDustZero();
+  const [baselinePower, setBaselinePower] = useState<number | null>(null);
+  
+  const sunlightLevel = device?.sunlight_level;
+  const currentPower = device?.solar_power;
+
+  useEffect(() => {
+    const fetchBaseline = async () => {
+      if (!deviceId || !sunlightLevel) return;
+      const { data } = await supabase
+        .from('device_baselines')
+        .select('baseline_power')
+        .eq('device_id', deviceId)
+        .eq('sunlight_level', sunlightLevel)
+        .single();
+      
+      if (data) {
+        setBaselinePower(data.baseline_power);
+      } else {
+        setBaselinePower(null);
+      }
+    };
+    
+    fetchBaseline();
+  }, [deviceId, sunlightLevel]);
+
+  if (!isOnline || !sunlightLevel || !currentPower) return null;
+
+  let efficiency = 0;
+  let statusColor = 'var(--text-muted)';
+  let verdict = 'Calculating...';
+
+  if (baselinePower) {
+    efficiency = Math.min(100, Math.round((currentPower / baselinePower) * 100));
+    if (efficiency > 85) {
+      statusColor = 'var(--accent-green)';
+      verdict = 'Clean & Efficient';
+    } else if (efficiency > 60) {
+      statusColor = 'var(--accent-amber)';
+      verdict = 'Slight Dust Accumulation';
+    } else {
+      statusColor = 'var(--accent-red)';
+      verdict = 'Dusty — Cleaning Recommended';
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: '20px', padding: '24px 32px' }}>
+      <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
+        <div style={{
+          width: '38px', height: '38px', borderRadius: '10px',
+          backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <Percent size={18} color="var(--text-primary)" />
+        </div>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>Panel Efficiency</h3>
+          <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Based on {getSunlightLabel(sunlightLevel).toLowerCase()} sunlight baseline
+          </p>
+        </div>
+      </div>
+      
+      {!baselinePower ? (
+        <div style={{ padding: '16px', backgroundColor: 'var(--bg-elevated)', borderRadius: '8px', border: '1px dashed var(--border-subtle)' }}>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            No baseline calibrated for <strong>{getSunlightLabel(sunlightLevel)}</strong> sunlight.
+            Go to Settings to calibrate when the panel is clean.
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-end gap-6">
+          <div className="flex items-baseline gap-1">
+            <span style={{ fontSize: '2.5rem', fontWeight: 800, color: statusColor, lineHeight: 1 }}>{efficiency}</span>
+            <span style={{ fontSize: '1.2rem', fontWeight: 600, color: statusColor }}>%</span>
+          </div>
+          <div style={{ paddingBottom: '6px' }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: 600, color: statusColor }}>{verdict}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Current: {currentPower.toFixed(3)}W / Baseline: {baselinePower.toFixed(3)}W
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -508,7 +603,10 @@ const Dashboard = () => {
       <OfflineBanner />
 
       {/* Hero Power Card */}
-      <HeroPowerCard />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+        <HeroPowerCard />
+        {isOnline && <PanelEfficiencyCard />}
+      </div>
 
       {/* Metric Cards — 4 columns on wide, 2 on medium, 1 on narrow */}
       <div

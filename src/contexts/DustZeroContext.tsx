@@ -1,9 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Device, Alert } from '../types';
+import type { User } from '@supabase/supabase-js';
 
 interface DustZeroContextType {
+  user: User | null;
+  isInitializing: boolean;
   device: Device | null;
+  devices: Device[];
   isOnline: boolean;
   alerts: Alert[];
   sendCommand: (command: 'START_CLEANING' | 'STOP_CLEANING') => Promise<void>;
@@ -15,12 +19,14 @@ interface DustZeroContextType {
 
 const DustZeroContext = createContext<DustZeroContextType | undefined>(undefined);
 
-// In a real app, this might be selected by the user. Hardcoding for the single-device dashboard.
-const DEFAULT_DEVICE_ID = 'dustzero-001';
 export const OFFLINE_TIMEOUT_MS = 15000; // 15 seconds (firmware updates ~every 10s)
 
 export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [deviceId, setDeviceIdState] = useState(localStorage.getItem('dustzero-device-id') || DEFAULT_DEVICE_ID);
+  const [user, setUser] = useState<User | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [deviceId, setDeviceIdState] = useState(localStorage.getItem('dustzero-device-id') || '');
   
   const setDeviceId = useCallback((id: string) => {
     localStorage.setItem('dustzero-device-id', id);
@@ -34,6 +40,28 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   
   const previousDeviceRef = useRef<Device | null>(null);
 
+  // --- AUTH ---
+  useEffect(() => {
+    const fetchSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setIsInitializing(false);
+    };
+
+    fetchSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
+        setDevices([]);
+        setDevice(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // --- DATA FETCHING ---
   const clampDeviceValues = (rawDevice: Device): Device => {
     return {
       ...rawDevice,
@@ -63,16 +91,62 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!prev.rain_detected && current.rain_detected) {
       addAlert("Rain detected. Automatic cleaning suspended.", "info");
     }
+    
+    // Check cleaning events to log them (client-side detection for task 3)
     if (prev.cleaning_state === 'IDLE' && current.cleaning_state !== 'IDLE') {
       addAlert("Cleaning cycle started.", "info");
+      // Could potentially log start time here or rely entirely on end time to fetch previous data
     }
     if (prev.cleaning_state !== 'IDLE' && current.cleaning_state === 'IDLE') {
       addAlert("Cleaning cycle completed or stopped.", "info");
+      // Fire and forget insert into cleaning events
+      supabase.from('cleaning_events').insert([{
+        device_id: current.device_id,
+        started_at: prev.updated_at, // approximation
+        ended_at: current.updated_at,
+        power_before: prev.solar_power,
+        power_after: current.solar_power,
+        power_delta: current.solar_power - prev.solar_power,
+        sunlight_level: current.sunlight_level,
+        trigger: 'AUTOMATIC' // Hard to distinguish from client unless we track recent commands
+      }]).then(({ error }) => {
+        if (error) console.error("Failed to log cleaning event", error);
+      });
     }
   }, [addAlert]);
 
+  // Fetch devices when user changes
   useEffect(() => {
-    if (!deviceId) return;
+    if (!user) return;
+    
+    const fetchDevices = async () => {
+      const { data, error } = await supabase.from('devices').select('*');
+      if (error) {
+        console.error("Error fetching devices:", error);
+        return;
+      }
+      if (data && data.length > 0) {
+        const clamped = data.map(d => clampDeviceValues(d as Device));
+        setDevices(clamped);
+        
+        // Auto-select if deviceId is empty or not in the list
+        if (!deviceId || !data.find(d => d.device_id === deviceId)) {
+          setDeviceId(data[0].device_id);
+        }
+      } else {
+        setDevices([]);
+        setDevice(null);
+      }
+    };
+    
+    fetchDevices();
+  }, [user, deviceId, setDeviceId]);
+
+  useEffect(() => {
+    if (!user || !deviceId) {
+      setDevice(null);
+      return;
+    }
 
     const fetchInitialData = async () => {
       const { data, error } = await supabase
@@ -96,7 +170,7 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // Subscribe to realtime changes
     const subscription = supabase
-      .channel('device_updates')
+      .channel(`device_updates_${deviceId}`)
       .on(
         'postgres_changes',
         {
@@ -115,6 +189,9 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           
           previousDeviceRef.current = clamped;
           setDevice(clamped);
+          
+          // Also update devices list
+          setDevices(prev => prev.map(d => d.device_id === clamped.device_id ? clamped : d));
         }
       )
       .subscribe();
@@ -122,7 +199,7 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [deviceId, checkAlerts]);
+  }, [user, deviceId, checkAlerts]);
 
   // Online status effect
   useEffect(() => {
@@ -193,7 +270,10 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <DustZeroContext.Provider value={{
+      user,
+      isInitializing,
       device,
+      devices,
       isOnline,
       alerts,
       sendCommand,

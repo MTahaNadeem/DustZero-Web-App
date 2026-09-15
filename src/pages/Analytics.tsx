@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useDustZero } from '../contexts/DustZeroContext';
 import { supabase } from '../lib/supabase';
-import type { DeviceHistory } from '../types';
+import type { DeviceHistory, CleaningEvent } from '../types';
 import {
   LineChart,
   Line,
@@ -22,6 +22,7 @@ import {
   Zap,
   Thermometer,
   TrendingUp,
+  Download,
 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { ChartCardSkeleton } from '../components/SkeletonBlock';
@@ -29,14 +30,13 @@ import { ChartCardSkeleton } from '../components/SkeletonBlock';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TimeRange = '24h' | '7d' | '30d';
-type LoadState = 'loading' | 'success' | 'empty' | 'error';
+type LoadState = 'loading' | 'success' | 'error';
 
 // ─── Custom Tooltip ───────────────────────────────────────────────────────────
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload || !payload.length) return null;
 
-  // Find the raw timestamp from the data point for the full formatted timestamp
   const rawEntry = payload[0]?.payload;
   const fullTimestamp = rawEntry?.recorded_at
     ? format(new Date(rawEntry.recorded_at), 'MMM d, yyyy  h:mm a')
@@ -53,7 +53,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         minWidth: '160px',
       }}
     >
-      {/* Full timestamp */}
       <p
         style={{
           margin: '0 0 12px 0',
@@ -122,9 +121,9 @@ const OfflineNotice: React.FC<{ lastSeen: string | null }> = ({ lastSeen }) => (
   </div>
 );
 
-// ─── Empty State ──────────────────────────────────────────────────────────────
+// ─── Empty State Banner ───────────────────────────────────────────────────────
 
-const EmptyState: React.FC<{ timeRange: TimeRange; isOffline: boolean }> = ({
+const EmptyStateBanner: React.FC<{ timeRange: TimeRange; isOffline: boolean }> = ({
   timeRange,
   isOffline,
 }) => {
@@ -135,40 +134,41 @@ const EmptyState: React.FC<{ timeRange: TimeRange; isOffline: boolean }> = ({
     <div
       className="card"
       style={{
-        textAlign: 'center',
-        padding: '64px 32px',
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         gap: '16px',
+        padding: '24px',
         marginBottom: '24px',
+        backgroundColor: 'var(--bg-elevated)',
+        border: '1px dashed var(--border-medium)',
       }}
     >
       <div
         style={{
-          width: '64px',
-          height: '64px',
+          width: '48px',
+          height: '48px',
           borderRadius: '50%',
-          backgroundColor: 'var(--bg-elevated)',
+          backgroundColor: 'var(--bg-card)',
           border: '1px solid var(--border-subtle)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          flexShrink: 0
         }}
       >
-        <Activity size={28} color="var(--text-muted)" />
+        <Activity size={24} color="var(--text-muted)" />
       </div>
       <div>
-        <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
+        <h3 style={{ margin: '0 0 4px 0', color: 'var(--text-primary)', fontSize: '1rem' }}>
           No Historical Data
         </h3>
         <p
           className="text-secondary"
-          style={{ fontSize: '0.9rem', margin: 0, maxWidth: '400px', lineHeight: 1.6 }}
+          style={{ fontSize: '0.85rem', margin: 0, lineHeight: 1.5 }}
         >
           {isOffline
-            ? `No historical snapshots found for the last ${rangeLabel}. Try switching to a longer time range — data from before the device went offline may appear under 7D or 30D.`
-            : `No measurements have been recorded in the last ${rangeLabel}. Once the device starts sending data and history snapshots are saved, your performance trends will appear here.`}
+            ? `No historical snapshots found for the last ${rangeLabel}. Try switching to a longer time range.`
+            : `No measurements have been recorded in the last ${rangeLabel}. Once the device starts sending data, charts will populate below.`}
         </p>
       </div>
     </div>
@@ -328,13 +328,6 @@ const GRID_STYLE = {
 
 // ─── Helper: build correct start time ────────────────────────────────────────
 
-/**
- * Returns the start-of-range Date for the selected time range.
- * BUG FIX: The previous implementation used setHours(now.getHours() - 24)
- * which only subtracts hours-of-day (not a real 24h window), causing
- * data from yesterday to disappear on the 24H view.
- * The correct approach is to subtract from Date.now() in milliseconds.
- */
 const getRangeStartTime = (timeRange: TimeRange): Date => {
   const now = Date.now();
   switch (timeRange) {
@@ -359,16 +352,14 @@ const formatXLabel = (recorded_at: string, timeRange: TimeRange): string => {
 // ─── Analytics Page ───────────────────────────────────────────────────────────
 
 const Analytics: React.FC = () => {
-  // Analytics NEVER depends on isOnline to load historical data.
-  // isOnline is used only for the informational offline notice.
   const { deviceId, isOnline, device } = useDustZero();
 
   const [history, setHistory] = useState<DeviceHistory[]>([]);
+  const [cleaningEvents, setCleaningEvents] = useState<CleaningEvent[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  // ── Fetch historical data independently of device online status ─────────────
   const fetchHistory = useCallback(async () => {
     if (!deviceId) return;
 
@@ -378,32 +369,34 @@ const Analytics: React.FC = () => {
     const startTime = getRangeStartTime(timeRange);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('device_history')
-        .select('*')
-        .eq('device_id', deviceId)
-        .gte('recorded_at', startTime.toISOString())
-        .order('recorded_at', { ascending: true });
+      const [historyRes, eventsRes] = await Promise.all([
+        supabase
+          .from('device_history')
+          .select('*')
+          .eq('device_id', deviceId)
+          .gte('recorded_at', startTime.toISOString())
+          .order('recorded_at', { ascending: true }),
+        supabase
+          .from('cleaning_events')
+          .select('*')
+          .eq('device_id', deviceId)
+          .gte('started_at', startTime.toISOString())
+          .order('started_at', { ascending: false })
+      ]);
 
-      if (fetchError) {
-        // Surface specific, actionable errors
-        if (fetchError.code === '42P01') {
-          setErrorMessage(
-            'The device_history table was not found in Supabase. ' +
-              'Please refer to the README to set up the device_history table and Edge Function.'
-          );
+      if (historyRes.error) {
+        if (historyRes.error.code === '42P01') {
+          setErrorMessage('The device_history table was not found in Supabase.');
         } else {
-          setErrorMessage(
-            `Query failed: ${fetchError.message || 'Unknown error'}. Check your connection and try again.`
-          );
+          setErrorMessage(`Query failed: ${historyRes.error.message || 'Unknown error'}. Check your connection and try again.`);
         }
         setLoadState('error');
         return;
       }
 
-      const records = (data as DeviceHistory[]) || [];
-      setHistory(records);
-      setLoadState(records.length === 0 ? 'empty' : 'success');
+      setHistory((historyRes.data as DeviceHistory[]) || []);
+      setCleaningEvents((eventsRes.data as CleaningEvent[]) || []);
+      setLoadState('success');
     } catch (err: any) {
       console.error('Error fetching history:', err);
       setErrorMessage('Failed to load historical data. Check your connection and try again.');
@@ -415,19 +408,36 @@ const Analytics: React.FC = () => {
     fetchHistory();
   }, [fetchHistory]);
 
-  // ── Build chart-ready data ──────────────────────────────────────────────────
-  // Keep recorded_at in each point so the tooltip can show the full timestamp.
-  // Insert null-separator rows for gaps > 6 minutes (360 seconds).
+  const exportToCSV = () => {
+    if (history.length === 0) return;
+    const headers = ['Timestamp', 'Power (W)', 'Voltage (V)', 'Current (A)', 'Temperature (C)', 'Sunlight', 'Rain'];
+    const rows = history.map(h => [
+      new Date(h.recorded_at).toISOString(),
+      h.solar_power,
+      h.solar_voltage,
+      h.solar_current,
+      h.temperature,
+      h.sunlight_level || '—',
+      h.rain_detected ? 'Yes' : 'No'
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `dustzero-history-${timeRange}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const chartData = useMemo(() => {
     const result: any[] = [];
     for (let i = 0; i < history.length; i++) {
       const h = history[i];
-
-      // Gap detection: insert a null row to break chart line
       if (i > 0) {
         const prev = history[i - 1];
-        const gapMs =
-          new Date(h.recorded_at).getTime() - new Date(prev.recorded_at).getTime();
+        const gapMs = new Date(h.recorded_at).getTime() - new Date(prev.recorded_at).getTime();
         if (gapMs > 6 * 60 * 1000) {
           result.push({
             recorded_at: null,
@@ -439,21 +449,17 @@ const Analytics: React.FC = () => {
           });
         }
       }
-
       result.push({
         ...h,
-        // Clamp bad electrical values — negative power/voltage/current = invalid
         solar_power: Math.max(0, h.solar_power),
         solar_voltage: Math.max(0, h.solar_voltage),
         solar_current: Math.max(0, h.solar_current),
-        // temperature: preserve as-is (may legitimately be below 0°C)
         timeLabel: formatXLabel(h.recorded_at, timeRange),
       });
     }
     return result;
   }, [history, timeRange]);
 
-  // ── Summary metrics from historical range ──────────────────────────────────
   const summaryMetrics = useMemo(() => {
     if (history.length === 0) return null;
     const powers = history.map((h) => Math.max(0, h.solar_power));
@@ -465,29 +471,36 @@ const Analytics: React.FC = () => {
     return { avgPower, peakPower, avgTemp, peakTemp };
   }, [history]);
 
-  // ── Last seen string ───────────────────────────────────────────────────────
-  const lastSeen = device?.updated_at
-    ? formatDistanceToNow(new Date(device.updated_at), { addSuffix: true })
-    : null;
+  const lastSeen = device?.updated_at ? formatDistanceToNow(new Date(device.updated_at), { addSuffix: true }) : null;
 
-  // ── Header right: time-range segmented control ─────────────────────────────
   const headerRight = (
-    <div className="segmented-control">
-      {(['24h', '7d', '30d'] as const).map((range) => (
-        <button
-          key={range}
-          className={timeRange === range ? 'active' : ''}
-          onClick={() => setTimeRange(range)}
-          aria-pressed={timeRange === range}
-          aria-label={`Show ${range === '24h' ? '24 hours' : range === '7d' ? '7 days' : '30 days'} of history`}
-        >
-          {range.toUpperCase()}
-        </button>
-      ))}
+    <div className="flex items-center gap-4">
+      <button 
+        className="btn btn-outline" 
+        style={{ padding: '6px 12px', fontSize: '0.85rem' }} 
+        onClick={exportToCSV} 
+        disabled={history.length === 0} 
+        title="Export data to CSV"
+      >
+        <Download size={14} style={{ marginRight: '6px' }} />
+        CSV Export
+      </button>
+      <div className="segmented-control">
+        {(['24h', '7d', '30d'] as const).map((range) => (
+          <button
+            key={range}
+            className={timeRange === range ? 'active' : ''}
+            onClick={() => setTimeRange(range)}
+            aria-pressed={timeRange === range}
+            aria-label={`Show ${range === '24h' ? '24 hours' : range === '7d' ? '7 days' : '30 days'} of history`}
+          >
+            {range.toUpperCase()}
+          </button>
+        ))}
+      </div>
     </div>
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div>
       <PageHeader
@@ -496,10 +509,8 @@ const Analytics: React.FC = () => {
         right={headerRight}
       />
 
-      {/* Offline informational notice (NOT a blocker) */}
       {!isOnline && <OfflineNotice lastSeen={lastSeen} />}
 
-      {/* ── Loading ────────────────────────────────────────────────────────── */}
       {loadState === 'loading' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div
@@ -532,20 +543,14 @@ const Analytics: React.FC = () => {
         </div>
       )}
 
-      {/* ── Error ─────────────────────────────────────────────────────────── */}
       {loadState === 'error' && (
         <ErrorState message={errorMessage} onRetry={fetchHistory} />
       )}
 
-      {/* ── Empty ─────────────────────────────────────────────────────────── */}
-      {loadState === 'empty' && (
-        <EmptyState timeRange={timeRange} isOffline={!isOnline} />
-      )}
-
-      {/* ── Success: show charts ───────────────────────────────────────────── */}
       {loadState === 'success' && (
         <div>
-          {/* Summary metrics row */}
+          {history.length === 0 && <EmptyStateBanner timeRange={timeRange} isOffline={!isOnline} />}
+          
           {summaryMetrics && (
             <div
               style={{
@@ -586,7 +591,37 @@ const Analytics: React.FC = () => {
             </div>
           )}
 
-          {/* Record count info */}
+          {/* Cleaning Effectiveness */}
+          <div className="card" style={{ marginBottom: '20px' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', marginBottom: '16px' }}>Cleaning Effectiveness</h3>
+            {cleaningEvents.length === 0 ? (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No cleaning cycles recorded in this timeframe.</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {cleaningEvents.map(ev => (
+                  <div key={ev.id} className="flex items-center justify-between" style={{ padding: '16px', backgroundColor: 'var(--bg-elevated)', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        Cycle at {format(new Date(ev.started_at), 'MMM d, h:mm a')}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Trigger: <strong>{ev.trigger}</strong> • Sunlight: <strong>{ev.sunlight_level || 'Unknown'}</strong>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: ev.power_delta > 0 ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                        {ev.power_delta > 0 ? '+' : ''}{ev.power_delta.toFixed(3)} W
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {ev.power_before.toFixed(3)}W → {ev.power_after.toFixed(3)}W
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div
             style={{
               fontSize: '0.8rem',
@@ -600,7 +635,6 @@ const Analytics: React.FC = () => {
               `${format(new Date(history[0].recorded_at), 'MMM d, HH:mm')} → ${format(new Date(history[history.length - 1].recorded_at), 'MMM d, HH:mm')}`}
           </div>
 
-          {/* Solar Power Chart */}
           <ChartCard
             title="Solar Power"
             subtitle="Historical output power in Watts"
@@ -636,14 +670,13 @@ const Analytics: React.FC = () => {
                   fillOpacity={1}
                   fill="url(#colorPower)"
                   connectNulls={false}
-                  dot={history.length <= 60 ? { fill: 'var(--accent-amber)', r: 3, strokeWidth: 0 } : false}
+                  dot={history.length <= 60 && history.length > 0 ? { fill: 'var(--accent-amber)', r: 3, strokeWidth: 0 } : false}
                   activeDot={{ r: 5, fill: 'var(--accent-amber)' }}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </ChartCard>
 
-          {/* Voltage & Current | Temperature */}
           <div
             style={{
               display: 'grid',
@@ -651,7 +684,6 @@ const Analytics: React.FC = () => {
               gap: '20px',
             }}
           >
-            {/* Voltage & Current */}
             <ChartCard
               title="Voltage & Current"
               subtitle="Voltage in V (left) and Current in A (right)"
@@ -691,7 +723,7 @@ const Analytics: React.FC = () => {
                     name="Voltage (V)"
                     stroke="var(--accent-blue)"
                     strokeWidth={2}
-                    dot={history.length <= 60 ? { fill: 'var(--accent-blue)', r: 3, strokeWidth: 0 } : false}
+                    dot={history.length <= 60 && history.length > 0 ? { fill: 'var(--accent-blue)', r: 3, strokeWidth: 0 } : false}
                     activeDot={{ r: 5, fill: 'var(--accent-blue)' }}
                     connectNulls={false}
                   />
@@ -702,7 +734,7 @@ const Analytics: React.FC = () => {
                     name="Current (A)"
                     stroke="var(--accent-purple)"
                     strokeWidth={2}
-                    dot={history.length <= 60 ? { fill: 'var(--accent-purple)', r: 3, strokeWidth: 0 } : false}
+                    dot={history.length <= 60 && history.length > 0 ? { fill: 'var(--accent-purple)', r: 3, strokeWidth: 0 } : false}
                     activeDot={{ r: 5, fill: 'var(--accent-purple)' }}
                     connectNulls={false}
                   />
@@ -710,7 +742,6 @@ const Analytics: React.FC = () => {
               </ResponsiveContainer>
             </ChartCard>
 
-            {/* Temperature */}
             <ChartCard
               title="Temperature"
               subtitle="Ambient temperature in °C"
@@ -750,7 +781,7 @@ const Analytics: React.FC = () => {
                     fillOpacity={1}
                     fill="url(#colorTemp)"
                     connectNulls={false}
-                    dot={history.length <= 60 ? { fill: 'var(--accent-red)', r: 3, strokeWidth: 0 } : false}
+                    dot={history.length <= 60 && history.length > 0 ? { fill: 'var(--accent-red)', r: 3, strokeWidth: 0 } : false}
                     activeDot={{ r: 5, fill: 'var(--accent-red)' }}
                   />
                 </AreaChart>

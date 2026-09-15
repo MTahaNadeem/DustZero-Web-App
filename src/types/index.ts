@@ -5,6 +5,7 @@ export type CommandType = 'START_CLEANING' | 'STOP_CLEANING';
 
 export interface Device {
   device_id: string;
+  user_id?: string;
   connected: boolean;
   ldr1: number;
   ldr2: number;
@@ -55,4 +56,35 @@ export interface Alert {
   severity: AlertSeverity;
   message: string;
   read: boolean;
+}
+
+export interface DeviceBaseline {
+  id: string;
+  device_id: string;
+  sunlight_level: SunlightLevel;
+  baseline_power: number;
+  recorded_at: string;
+  notes?: string;
+}
+
+export interface CleaningEvent {
+  id: string;
+  device_id: string;
+  started_at: string;
+  ended_at: string;
+  power_before: number;
+  power_after: number;
+  power_delta: number;
+  sunlight_level: SunlightLevel;
+  trigger: 'AUTOMATIC' | 'MANUAL';
+}
+
+export interface DeviceSettings {
+  device_id: string;
+  automatic_cleaning: boolean;
+  power_threshold: number;
+  sunlight_threshold: number;
+  cleaning_distance_steps: number;
+  cleaning_cooldown_minutes: number;
+  updated_at: string;
 }
