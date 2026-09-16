@@ -56,6 +56,21 @@ select cron.schedule(
 ```
 *(Note the guard clause `updated_at >= now() - interval '1 minute'`: it ensures we do not record stale, offline data into the history table).*
 
+### 4. Shared Edge Function (`get-weather`)
+Both the Web App and Android App share a single Supabase Edge Function to fetch weather forecasts. This ensures API keys are kept secure and only the minimal required payload is sent to clients.
+
+#### Deployment Instructions
+To deploy the edge function to your Supabase project:
+1. Set your OpenWeatherMap API key as a secret:
+   ```bash
+   npx supabase secrets set OPENWEATHER_API_KEY=<your_api_key>
+   ```
+2. Deploy the function (requires being logged into Supabase CLI):
+   ```bash
+   npx supabase functions deploy get-weather --project-ref oxgjosjqzlulnfcmqbty
+   ```
+   *(Note: The deployed function will be accessible at `https://oxgjosjqzlulnfcmqbty.supabase.co/functions/v1/get-weather`)*
+
 ## Configuration
 
 ### Supabase Auth URL Configuration
