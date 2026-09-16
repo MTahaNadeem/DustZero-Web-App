@@ -126,7 +126,7 @@ const Onboarding: React.FC = () => {
   };
 
   return (
-    <div className="auth-container animate-fade-in" style={{ padding: '20px' }}>
+    <div className="auth-layout animate-fade-in">
       <div className="auth-card" style={{ maxWidth: '480px', width: '100%' }}>
         
         {/* Progress Bar */}
