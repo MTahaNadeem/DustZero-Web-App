@@ -22,6 +22,9 @@ export const exportElementToPDF = async (
   element.style.top = '0';
   
   try {
+    // Wait for Recharts ResizeObserver to trigger and render synchronously
+    await new Promise(r => setTimeout(r, 500));
+
     const canvas = await html2canvas(element, {
       scale: 2, // High resolution
       useCORS: true,
@@ -41,35 +44,70 @@ export const exportElementToPDF = async (
     
     // Calculate height based on aspect ratio
     const imgRatio = canvas.height / canvas.width;
-    const imgHeight = innerWidth * imgRatio;
+    const totalImgHeight = innerWidth * imgRatio;
     
-    // Add header
-    pdf.setFillColor(30, 30, 30);
-    pdf.rect(0, 0, pdfWidth, pdfHeight, 'F'); // Dark background
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(22);
-    pdf.text('DustZero Report', margin, margin + 10);
-    
-    pdf.setFontSize(12);
-    pdf.setTextColor(150, 150, 150);
-    pdf.text(title, margin, margin + 18);
-    pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, margin + 24);
-    
-    // Add separator
-    pdf.setDrawColor(60, 60, 60);
-    pdf.line(margin, margin + 30, pdfWidth - margin, margin + 30);
+    const pageHeaderHeight = 35; // Space for header on first page
+    let remainingHeight = totalImgHeight;
+    let yPosition = 0; // Tracks the crop y-coordinate in mm-scale
+    let isFirstPage = true;
 
-    // Add image
-    if (imgHeight <= pdfHeight - (margin + 35)) {
-      // Fits on one page
-      pdf.addImage(imgData, 'PNG', margin, margin + 35, innerWidth, imgHeight);
-    } else {
-      // Too tall, needs logic for multiple pages if desired, or we just let it scale to fit page height.
-      // For this simplified export, we will scale it to fit one page.
-      const scaledWidth = (pdfHeight - (margin + 35)) / imgRatio;
-      const xOffset = (pdfWidth - scaledWidth) / 2;
-      pdf.addImage(imgData, 'PNG', xOffset, margin + 35, scaledWidth, pdfHeight - (margin + 35));
+    while (remainingHeight > 0) {
+      if (!isFirstPage) {
+        pdf.addPage();
+      }
+
+      pdf.setFillColor(30, 30, 30);
+      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F'); // Dark background
+      
+      const currentAvailableHeight = isFirstPage ? pdfHeight - margin - pageHeaderHeight : pdfHeight - margin * 2;
+      const currentYOffset = isFirstPage ? margin + pageHeaderHeight : margin;
+
+      if (isFirstPage) {
+        // Add header
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(22);
+        pdf.text('DustZero Report', margin, margin + 10);
+        
+        pdf.setFontSize(12);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(title, margin, margin + 18);
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, margin + 24);
+        
+        // Add separator
+        pdf.setDrawColor(60, 60, 60);
+        pdf.line(margin, margin + 30, pdfWidth - margin, margin + 30);
+      }
+
+      // Add image segment
+      // The y-coordinate in pdf.addImage is negative if we want to crop the top off
+      pdf.addImage(imgData, 'PNG', margin, currentYOffset - yPosition, innerWidth, totalImgHeight);
+      
+      // Since addImage doesn't clip automatically in all viewers, we draw a rectangle over the bottom and top bounds to mask it if necessary.
+      // Wait, jsPDF addImage doesn't clip. We need to draw over the margins to mask out the overflowing image parts.
+      // Top mask
+      pdf.setFillColor(30, 30, 30);
+      pdf.rect(0, 0, pdfWidth, currentYOffset, 'F');
+      
+      // If it's first page, we need to re-draw the header over the mask
+      if (isFirstPage) {
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(22);
+        pdf.text('DustZero Report', margin, margin + 10);
+        pdf.setFontSize(12);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(title, margin, margin + 18);
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, margin + 24);
+        pdf.setDrawColor(60, 60, 60);
+        pdf.line(margin, margin + 30, pdfWidth - margin, margin + 30);
+      }
+
+      // Bottom mask
+      pdf.setFillColor(30, 30, 30);
+      pdf.rect(0, currentYOffset + currentAvailableHeight, pdfWidth, pdfHeight - (currentYOffset + currentAvailableHeight), 'F');
+
+      remainingHeight -= currentAvailableHeight;
+      yPosition += currentAvailableHeight;
+      isFirstPage = false;
     }
 
     pdf.save(filename);
