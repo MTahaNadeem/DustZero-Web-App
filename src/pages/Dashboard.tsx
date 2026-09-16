@@ -306,7 +306,7 @@ const WeatherCard = () => {
         }
         if (error instanceof FunctionsHttpError) {
           // Function was reached and returned a non-2xx HTTP response
-          const status = error.status;
+          const status = error.context?.status || 500;
           console.error('[Weather] FunctionsHttpError:', { status, message: error.message });
 
           // Try to read the structured body with `code` field
