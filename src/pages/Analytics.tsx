@@ -5,8 +5,6 @@ import type { DeviceHistory, CleaningEvent } from '../types';
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
