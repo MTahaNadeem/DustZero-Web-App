@@ -14,14 +14,30 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url)
-    const latStr = url.searchParams.get('lat')
-    const lonStr = url.searchParams.get('lon')
+    let latStr: string | null = null
+    let lonStr: string | null = null
+
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json()
+        latStr = body.lat?.toString() || null
+        lonStr = body.lon?.toString() || null
+      } catch (e) {
+        console.error("Failed to parse JSON body:", e)
+      }
+    }
+
+    // Fallback to query params
+    if (!latStr || !lonStr) {
+      const url = new URL(req.url)
+      latStr = latStr || url.searchParams.get('lat')
+      lonStr = lonStr || url.searchParams.get('lon')
+    }
 
     // 1. Validate inputs
     if (!latStr || !lonStr) {
       return new Response(
-        JSON.stringify({ error: 'Missing lat or lon query parameters' }),
+        JSON.stringify({ error: 'Missing lat or lon parameters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

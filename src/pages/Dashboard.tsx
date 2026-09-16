@@ -256,83 +256,142 @@ const WeatherCard = () => {
   const { device } = useDustZero();
   const [weather, setWeather] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const fetchWeather = async () => {
+    if (device?.latitude == null || device?.longitude == null) {
+      setWeather(null);
+      setErrorMsg(null);
+      return;
+    }
+    
+    if (isNaN(device.latitude) || isNaN(device.longitude) || device.latitude < -90 || device.latitude > 90 || device.longitude < -180 || device.longitude > 180) {
+      setWeather(null);
+      setErrorMsg('INVALID_LOCATION');
+      return;
+    }
+
+    if (!weather) setLoading(true);
+    else setRefreshing(true);
+    
+    setErrorMsg(null);
+    
+    try {
+      console.log('WEATHER: Weather request started');
+      console.log(`WEATHER: Weather coordinates: ${device.latitude}, ${device.longitude}`);
+      console.log('WEATHER: Calling get-weather');
+
+      const { data, error } = await supabase.functions.invoke('get-weather', {
+        method: 'POST',
+        body: { lat: device.latitude, lon: device.longitude }
+      });
+
+      console.log('WEATHER: get-weather response received');
+
+      if (error) {
+        if (error.status === 404 || error.status === 503 || error.status === 502) throw new Error('EDGE_FUNCTION_UNAVAILABLE');
+        if (error.status === 401 || error.status === 403) throw new Error('OPENWEATHER_UNAUTHORIZED');
+        if (error.status === 429) throw new Error('OPENWEATHER_RATE_LIMIT');
+        throw new Error('EDGE_FUNCTION_ERROR');
+      }
+
+      if (!data || !data.current || typeof data.current.temp === 'undefined') {
+        throw new Error('WEATHER_RESPONSE_INVALID');
+      }
+
+      let rainExpectedInHours = null;
+      let willBeClear = false;
+      let rainProbability = 0;
+
+      if (data.next_12_hours && Array.isArray(data.next_12_hours)) {
+        const rainBlock = data.next_12_hours.find((b: any) => b.pop >= 50 || (b.conditions && b.conditions.toLowerCase().includes('rain')));
+        
+        if (rainBlock) {
+          const blockTime = new Date(rainBlock.dt * 1000);
+          const now = new Date();
+          const diffHours = Math.max(1, Math.round((blockTime.getTime() - now.getTime()) / (1000 * 60 * 60)));
+          rainExpectedInHours = diffHours;
+          rainProbability = rainBlock.pop || 0;
+        } else {
+          willBeClear = true;
+        }
+      }
+
+      console.log('WEATHER: Weather response parsed');
+      setWeather({
+        current: {
+          temp: data.current.temp,
+          description: data.current.description,
+        },
+        forecast: {
+          rainExpectedInHours,
+          rainProbability,
+          willBeClear
+        }
+      });
+    } catch (err: any) {
+      console.error('WEATHER: Failed to fetch weather', err);
+      const knownErrors = ['EDGE_FUNCTION_UNAVAILABLE', 'EDGE_FUNCTION_ERROR', 'OPENWEATHER_UNAUTHORIZED', 'OPENWEATHER_RATE_LIMIT', 'WEATHER_RESPONSE_INVALID', 'INVALID_LOCATION'];
+      if (err.message && knownErrors.includes(err.message)) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg('NETWORK_ERROR');
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchWeather = async () => {
-      if (!device?.latitude || !device?.longitude) {
-        setWeather(null);
-        return;
-      }
-      setLoading(true);
-      setError(false);
-      try {
-        const { data, error } = await supabase.functions.invoke(`get-weather?lat=${device.latitude}&lon=${device.longitude}`, {
-          method: 'GET'
-        });
-        
-        if (error) throw error;
-        
-        let rainExpectedInHours = null;
-        let willBeClear = false;
-
-        if (data.next_12_hours && Array.isArray(data.next_12_hours)) {
-          // Find first block where pop >= 50 or conditions include 'Rain'
-          const rainBlock = data.next_12_hours.find((b: any) => b.pop >= 50 || b.conditions.toLowerCase().includes('rain'));
-          
-          if (rainBlock) {
-            const blockTime = new Date(rainBlock.dt * 1000);
-            const now = new Date();
-            const diffHours = Math.max(1, Math.round((blockTime.getTime() - now.getTime()) / (1000 * 60 * 60)));
-            rainExpectedInHours = diffHours;
-          } else {
-            willBeClear = true;
-          }
-        }
-
-        setWeather({
-          current: {
-            temp: data.current.temp,
-            description: data.current.description
-          },
-          forecast: {
-            rainExpectedInHours,
-            willBeClear
-          }
-        });
-      } catch (err) {
-        console.error('Failed to fetch weather', err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    // Fetch initially and set interval for every 30 minutes
     fetchWeather();
     const interval = setInterval(fetchWeather, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [device?.latitude, device?.longitude]);
+  }, [device?.latitude, device?.longitude, device?.device_id]);
+
+  const getErrorDisplay = (code: string) => {
+    switch (code) {
+      case 'INVALID_LOCATION': return 'Invalid device location';
+      case 'EDGE_FUNCTION_UNAVAILABLE': return 'The Supabase Edge Function could not be reached or is unavailable.';
+      case 'EDGE_FUNCTION_ERROR': return 'The Edge Function returned an error.';
+      case 'OPENWEATHER_UNAUTHORIZED': return 'Backend reports an OpenWeather authorization/key problem.';
+      case 'OPENWEATHER_RATE_LIMIT': return 'Backend reports rate limiting.';
+      case 'WEATHER_RESPONSE_INVALID': return 'The backend returned unexpected/malformed weather data.';
+      case 'NETWORK_ERROR': return 'Browser/network request failed. Please check your connection.';
+      default: return 'Something went wrong.';
+    }
+  };
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-      <div className="flex items-center gap-2" style={{ marginBottom: '16px' }}>
-        <div
-          style={{
-            width: '32px', height: '32px', borderRadius: '8px',
-            backgroundColor: 'var(--accent-purple-bg)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '1px solid var(--accent-purple-border)',
-          }}
+      <div className="flex items-center justify-between" style={{ marginBottom: '16px' }}>
+        <div className="flex items-center gap-2">
+          <div
+            style={{
+              width: '32px', height: '32px', borderRadius: '8px',
+              backgroundColor: 'var(--accent-purple-bg)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: '1px solid var(--accent-purple-border)',
+            }}
+          >
+            <CloudDrizzle size={16} color="var(--accent-purple)" />
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1rem' }}>Weather Forecast</h3>
+          </div>
+        </div>
+        <button 
+          className="btn btn-outline btn-sm" 
+          onClick={fetchWeather} 
+          disabled={loading || refreshing || device?.latitude == null || device?.longitude == null}
+          style={{ padding: '4px 8px', fontSize: '0.8rem' }}
         >
-          <CloudDrizzle size={16} color="var(--accent-purple)" />
-        </div>
-        <div>
-          <h3 style={{ margin: 0, fontSize: '1rem' }}>Weather Forecast</h3>
-        </div>
+          {refreshing ? 'Refreshing...' : 'Refresh'}
+        </button>
       </div>
 
-      {!device?.latitude || !device?.longitude ? (
+      {device?.latitude == null || device?.longitude == null ? (
         <div style={{ padding: '16px', backgroundColor: 'var(--bg-elevated)', borderRadius: '8px', border: '1px dashed var(--border-subtle)' }}>
           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             Location not set. Go to <strong>Settings</strong> to set your device location for weather insights.
@@ -340,19 +399,24 @@ const WeatherCard = () => {
         </div>
       ) : loading && !weather ? (
         <div style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading weather data...</div>
-      ) : error || !weather ? (
-        <div style={{ padding: '16px', backgroundColor: 'var(--bg-elevated)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Weather data currently unavailable.
+      ) : !weather && errorMsg ? (
+        <div style={{ padding: '16px', backgroundColor: 'var(--accent-red-bg)', borderRadius: '8px', color: 'var(--accent-red)', fontSize: '0.85rem', border: '1px solid var(--accent-red-border)' }}>
+          {getErrorDisplay(errorMsg)}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {errorMsg && weather && (
+            <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '6px', color: 'var(--accent-amber)', fontSize: '0.8rem', border: '1px dashed var(--accent-amber-border)' }}>
+              Unable to refresh — showing last available data. ({getErrorDisplay(errorMsg)})
+            </div>
+          )}
           <div className="flex items-center justify-between" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
             <div>
               <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {weather.current.temp ? `${Math.round(weather.current.temp)}°C` : '—'}
+                {weather?.current?.temp != null ? `${Math.round(weather.current.temp)}°C` : '—'}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
-                {weather.current.description || 'Current conditions'}
+                {weather?.current?.description || 'Current conditions'}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -363,16 +427,21 @@ const WeatherCard = () => {
           </div>
           
           <div>
-            {weather.forecast.rainExpectedInHours !== null ? (
+            {weather?.forecast?.rainExpectedInHours != null ? (
               <div style={{ backgroundColor: 'var(--accent-blue-bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--accent-blue-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-blue)', fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px' }}>
                   <CloudLightning size={16} /> Rain Expected
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                  Rain expected in ~{weather.forecast.rainExpectedInHours} hours — automatic cleaning will be blocked during rainfall.
+                  Rain expected in ~{weather?.forecast?.rainExpectedInHours} hours — automatic cleaning will be blocked during rainfall.
                 </div>
+                {(weather?.forecast?.rainProbability ?? 0) > 0 && (
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-blue)', marginTop: '6px' }}>
+                    Rain Probability: {weather?.forecast?.rainProbability}%
+                  </div>
+                )}
               </div>
-            ) : weather.forecast.willBeClear ? (
+            ) : weather?.forecast?.willBeClear ? (
               <div style={{ backgroundColor: 'var(--accent-green-bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--accent-green-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-green)', fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px' }}>
                   <Sun size={16} /> Clear Skies

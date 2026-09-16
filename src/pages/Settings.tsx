@@ -333,11 +333,29 @@ const DeviceLocationSection: React.FC = () => {
     const parsedLat = parseFloat(lat);
     const parsedLon = parseFloat(lon);
     
+    if (lat.trim() !== '' || lon.trim() !== '') {
+      if (isNaN(parsedLat) || isNaN(parsedLon)) {
+        setMessage('Failed: Please enter valid numbers for latitude and longitude.');
+        setSaving(false);
+        return;
+      }
+      if (parsedLat < -90 || parsedLat > 90) {
+        setMessage('Failed: Latitude must be between -90 and 90.');
+        setSaving(false);
+        return;
+      }
+      if (parsedLon < -180 || parsedLon > 180) {
+        setMessage('Failed: Longitude must be between -180 and 180.');
+        setSaving(false);
+        return;
+      }
+    }
+    
     const { error } = await supabase
       .from('devices')
       .update({
-        latitude: isNaN(parsedLat) ? null : parsedLat,
-        longitude: isNaN(parsedLon) ? null : parsedLon
+        latitude: lat.trim() === '' ? null : parsedLat,
+        longitude: lon.trim() === '' ? null : parsedLon
       })
       .eq('device_id', deviceId);
       
@@ -363,9 +381,18 @@ const DeviceLocationSection: React.FC = () => {
       (position) => {
         setLat(position.coords.latitude.toFixed(6));
         setLon(position.coords.longitude.toFixed(6));
+        setMessage('Location obtained. Remember to click Save.');
       },
-      () => {
-        setMessage('Failed to get location. Please allow location access or enter manually.');
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setMessage('Failed: Location permission was denied. You can enter your location manually.');
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setMessage('Failed: Your location could not be determined. Please try again or enter it manually.');
+        } else if (err.code === err.TIMEOUT) {
+          setMessage('Failed: Location request timed out. Please try again.');
+        } else {
+          setMessage('Failed: An unknown error occurred while getting location.');
+        }
       }
     );
   };
