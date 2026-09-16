@@ -5,6 +5,8 @@ import type { DeviceHistory, CleaningEvent } from '../types';
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -23,9 +25,11 @@ import {
   Thermometer,
   TrendingUp,
   Download,
+  FileText,
 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { ChartCardSkeleton } from '../components/SkeletonBlock';
+import { exportElementToPDF } from '../lib/pdfExport';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -359,6 +363,7 @@ const Analytics: React.FC = () => {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   const fetchHistory = useCallback(async () => {
     if (!deviceId) return;
@@ -431,6 +436,27 @@ const Analytics: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleExportPDF = async () => {
+    if (!device) return;
+    setExportingPDF(true);
+    try {
+      const title = `Analytics Report for ${device.device_name || device.device_id}`;
+      const filename = `dustzero-report-${device.device_name || device.device_id}-${new Date().toISOString().split('T')[0]}.pdf`;
+      await exportElementToPDF('pdf-report-container', filename, title);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
+  const stats = useMemo(() => {
+    const totalPower = history.reduce((acc, h) => acc + Math.max(0, h.solar_power), 0);
+    const avgDailyPower = history.length > 0 ? totalPower / 30 : 0;
+    const cleaningCount = cleaningEvents.length;
+    return { totalPower, avgDailyPower, cleaningCount };
+  }, [history, cleaningEvents]);
+
   const chartData = useMemo(() => {
     const result: any[] = [];
     for (let i = 0; i < history.length; i++) {
@@ -476,6 +502,16 @@ const Analytics: React.FC = () => {
   const headerRight = (
     <div className="flex items-center gap-4">
       <button 
+        className="btn btn-primary" 
+        style={{ padding: '6px 12px', fontSize: '0.85rem' }} 
+        onClick={handleExportPDF} 
+        disabled={exportingPDF || history.length === 0} 
+        title="Export data to PDF"
+      >
+        <FileText size={14} style={{ marginRight: '6px' }} />
+        {exportingPDF ? 'Generating...' : 'PDF Report'}
+      </button>
+      <button 
         className="btn btn-outline" 
         style={{ padding: '6px 12px', fontSize: '0.85rem' }} 
         onClick={exportToCSV} 
@@ -508,6 +544,63 @@ const Analytics: React.FC = () => {
         subtitle="Historical performance and sensor data — independent of current device status."
         right={headerRight}
       />
+
+      {/* ─── PDF Report Wrapper (Hidden in UI, captured for PDF) ─── */}
+      <div 
+        id="pdf-report-container" 
+        style={{ 
+          display: 'none', 
+          width: '800px', 
+          padding: '30px', 
+          backgroundColor: '#1E1E1E',
+          color: '#fff',
+          fontFamily: 'Inter, sans-serif'
+        }}
+      >
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
+           <div style={{ flex: 1, backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '14px', color: '#888' }}>Total Power Gen (30d)</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.totalPower.toFixed(2)} Wh</div>
+           </div>
+           <div style={{ flex: 1, backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '14px', color: '#888' }}>Avg Daily Output</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.avgDailyPower.toFixed(2)} Wh/day</div>
+           </div>
+           <div style={{ flex: 1, backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '14px', color: '#888' }}>Cleanings (30d)</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{stats.cleaningCount}</div>
+           </div>
+        </div>
+        
+        <div style={{ marginBottom: '30px', backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px' }}>Power Output</h3>
+          <div style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#444" vertical={false} />
+                <XAxis dataKey="timeLabel" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
+                <YAxis stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
+                <Area type="monotone" dataKey="solar_power" stroke="#10b981" fill="#10b981" fillOpacity={0.2} strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div style={{ backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px' }}>Cleaning History (Counts)</h3>
+          <div style={{ height: '200px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[{name: 'Cleanings', value: stats.cleaningCount}]} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#444" vertical={false} />
+                <XAxis dataKey="name" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
+                <YAxis allowDecimals={false} stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
+                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+      {/* ─────────────────────────────────────────────────────────── */}
 
       {!isOnline && <OfflineNotice lastSeen={lastSeen} />}
 

@@ -12,7 +12,10 @@ import {
   OctagonX,
   Gauge,
   Activity,
-  Percent
+  Percent,
+  CloudLightning,
+  MapPin,
+  CloudDrizzle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
@@ -239,6 +242,121 @@ const PanelEfficiencyCard = () => {
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
               Current: {currentPower.toFixed(3)}W / Baseline: {baselinePower.toFixed(3)}W
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Weather Forecast Card
+ */
+const WeatherCard = () => {
+  const { device } = useDustZero();
+  const [weather, setWeather] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      if (!device?.latitude || !device?.longitude) {
+        setWeather(null);
+        return;
+      }
+      setLoading(true);
+      setError(false);
+      try {
+        const res = await fetch(`/api/weather?lat=${device.latitude}&lon=${device.longitude}`);
+        if (!res.ok) throw new Error('Weather failed');
+        const data = await res.json();
+        setWeather(data);
+      } catch (err) {
+        console.error('Failed to fetch weather', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    // Fetch initially and set interval for every 30 minutes
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [device?.latitude, device?.longitude]);
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+      <div className="flex items-center gap-2" style={{ marginBottom: '16px' }}>
+        <div
+          style={{
+            width: '32px', height: '32px', borderRadius: '8px',
+            backgroundColor: 'var(--accent-purple-bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1px solid var(--accent-purple-border)',
+          }}
+        >
+          <CloudDrizzle size={16} color="var(--accent-purple)" />
+        </div>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>Weather Forecast</h3>
+        </div>
+      </div>
+
+      {!device?.latitude || !device?.longitude ? (
+        <div style={{ padding: '16px', backgroundColor: 'var(--bg-elevated)', borderRadius: '8px', border: '1px dashed var(--border-subtle)' }}>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Location not set. Go to <strong>Settings</strong> to set your device location for weather insights.
+          </p>
+        </div>
+      ) : loading && !weather ? (
+        <div style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading weather data...</div>
+      ) : error || !weather ? (
+        <div style={{ padding: '16px', backgroundColor: 'var(--bg-elevated)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          Weather data currently unavailable.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="flex items-center justify-between" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {weather.current.temp ? `${Math.round(weather.current.temp)}°C` : '—'}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                {weather.current.description || 'Current conditions'}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                <MapPin size={12} /> {weather.location}
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            {weather.forecast.rainExpectedInHours !== null ? (
+              <div style={{ backgroundColor: 'var(--accent-blue-bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--accent-blue-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-blue)', fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px' }}>
+                  <CloudLightning size={16} /> Rain Expected
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  Rain expected in ~{weather.forecast.rainExpectedInHours} hours — automatic cleaning will be blocked during rainfall.
+                </div>
+              </div>
+            ) : weather.forecast.willBeClear ? (
+              <div style={{ backgroundColor: 'var(--accent-green-bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--accent-green-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-green)', fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px' }}>
+                  <Sun size={16} /> Clear Skies
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  Clear skies expected for the next 12 hours — good conditions for automatic cleaning.
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: '12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                No significant weather events expected in the next 12 hours.
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -705,7 +823,7 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Bottom row: Environment | Cleaning System */}
+      {/* Bottom row: Environment | Cleaning System | Weather */}
       <div
         style={{
           display: 'grid',
@@ -716,6 +834,7 @@ const Dashboard = () => {
       >
         <EnvironmentCard />
         <CleaningStatusCard />
+        <WeatherCard />
       </div>
 
       {/* Panel Health */}

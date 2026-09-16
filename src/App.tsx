@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -6,6 +6,7 @@ import {
   Settings as SettingsIcon,
   Bell,
   Droplet,
+  ChevronDown
 } from 'lucide-react';
 import { DustZeroProvider, useDustZero } from './contexts/DustZeroContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -18,6 +19,8 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import ResetPassword from './pages/ResetPassword';
+import { ShareView } from './pages/ShareView';
+import Onboarding from './pages/Onboarding';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import './App.css';
@@ -39,8 +42,9 @@ function ThemeInitializer() {
 
 // ✨ Navigation ✨
 const Navigation = () => {
-  const { alerts, device, isOnline, deviceId } = useDustZero();
+  const { alerts, device, isOnline, deviceId, devices, setDeviceId } = useDustZero();
   const unreadCount = alerts.filter((a) => !a.read).length;
+  const [switcherOpen, setSwitcherOpen] = useState(false);
 
   const lastUpdate = device?.updated_at
     ? formatDistanceToNow(new Date(device.updated_at), { addSuffix: true })
@@ -134,21 +138,87 @@ const Navigation = () => {
 
         {/* Device status footer (desktop only) */}
         <div className="sidebar-footer">
-          <div className="sidebar-footer-device">
-            <div className={`sidebar-footer-dot ${isOnline ? 'online' : 'offline'}`} />
-            <div className="sidebar-footer-info">
-              <div className="sidebar-footer-id">{deviceId || 'No device'}</div>
-              <div className="sidebar-footer-status">
-                {!deviceId 
-                  ? 'Select a device'
-                  : isOnline
-                    ? lastUpdate
-                      ? `Updated ${lastUpdate.replace('about ', '')}`
-                      : 'Device online'
-                    : 'Device offline'}
+          {devices.length > 1 ? (
+            <div style={{ position: 'relative' }}>
+              <div 
+                className="sidebar-footer-device" 
+                style={{ cursor: 'pointer', padding: '12px', borderRadius: '8px', backgroundColor: switcherOpen ? 'var(--bg-hover)' : 'transparent', transition: 'background-color 0.2s' }}
+                onClick={() => setSwitcherOpen(!switcherOpen)}
+              >
+                <div className={`sidebar-footer-dot ${isOnline ? 'online' : 'offline'}`} />
+                <div className="sidebar-footer-info" style={{ flex: 1 }}>
+                  <div className="sidebar-footer-id">{device?.device_name || deviceId}</div>
+                  <div className="sidebar-footer-status">
+                    {isOnline ? 'Online' : 'Offline'}
+                  </div>
+                </div>
+                <ChevronDown size={16} color="var(--text-muted)" style={{ transform: switcherOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </div>
+              
+              {switcherOpen && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 'calc(100% + 8px)',
+                  left: 0,
+                  width: '100%',
+                  backgroundColor: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  boxShadow: 'var(--shadow-lg)',
+                  padding: '6px',
+                  zIndex: 50,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  {devices.map(d => (
+                    <button
+                      key={d.device_id}
+                      onClick={() => { setDeviceId(d.device_id); setSwitcherOpen(false); }}
+                      style={{
+                        padding: '10px 12px',
+                        textAlign: 'left',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: d.device_id === deviceId ? 'var(--bg-hover)' : 'transparent',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: d.connected ? 'var(--accent-green)' : 'var(--text-muted)' }} />
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
+                        {d.device_name || d.device_id}
+                      </div>
+                    </button>
+                  ))}
+                  <div style={{ padding: '4px' }}>
+                    <NavLink to="/settings" onClick={() => setSwitcherOpen(false)} style={{ display: 'block', padding: '8px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--accent-blue)', textDecoration: 'none' }}>
+                      Add Device
+                    </NavLink>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="sidebar-footer-device">
+              <div className={`sidebar-footer-dot ${isOnline ? 'online' : 'offline'}`} />
+              <div className="sidebar-footer-info">
+                <div className="sidebar-footer-id">{device?.device_name || deviceId || 'No device'}</div>
+                <div className="sidebar-footer-status">
+                  {!deviceId 
+                    ? 'Select a device'
+                    : isOnline
+                      ? lastUpdate
+                        ? `Updated ${lastUpdate.replace('about ', '')}`
+                        : 'Device online'
+                      : 'Device offline'}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </nav>
     </>
@@ -158,6 +228,7 @@ const Navigation = () => {
 // ✨ App Content ✨
 const AppContent = () => {
   const navigate = useNavigate();
+  const { devices, user, isInitializing } = useDustZero();
 
   useEffect(() => {
     // Catch auth hashes (e.g., from old emails that went to root instead of /auth/callback)
@@ -168,11 +239,27 @@ const AppContent = () => {
     }
   }, [navigate]);
 
+  useEffect(() => {
+    // Redirect to onboarding if authenticated but no devices
+    if (!isInitializing && user && devices.length === 0 && window.location.pathname !== '/onboarding' && !window.location.pathname.startsWith('/share/')) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [user, devices, isInitializing, navigate]);
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/share/:slug" element={<ShareView />} />
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <Onboarding />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/*"
         element={

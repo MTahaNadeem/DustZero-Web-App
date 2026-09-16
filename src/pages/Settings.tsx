@@ -12,9 +12,18 @@ import {
   Monitor,
   Wifi,
   LogOut,
-  Bell
+  Bell,
+  MapPin,
+  Map,
+  Settings2,
+  Trash2,
+  Share2,
+  Copy,
+  ExternalLink,
+  Cpu
 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 // ─── Device Connection Section ────────────────────────────────────────────────
 
@@ -301,6 +310,231 @@ const BaselineCalibrationSection: React.FC = () => {
   );
 };
 
+// ─── Device Location Section ──────────────────────────────────────────────────
+
+const DeviceLocationSection: React.FC = () => {
+  const { device, deviceId, refreshDevices } = useDustZero();
+  const [lat, setLat] = useState(device?.latitude?.toString() ?? '');
+  const [lon, setLon] = useState(device?.longitude?.toString() ?? '');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    setLat(device?.latitude?.toString() ?? '');
+    setLon(device?.longitude?.toString() ?? '');
+  }, [device?.latitude, device?.longitude]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deviceId) return;
+    setSaving(true);
+    setMessage('');
+    
+    const parsedLat = parseFloat(lat);
+    const parsedLon = parseFloat(lon);
+    
+    const { error } = await supabase
+      .from('devices')
+      .update({
+        latitude: isNaN(parsedLat) ? null : parsedLat,
+        longitude: isNaN(parsedLon) ? null : parsedLon
+      })
+      .eq('device_id', deviceId);
+      
+    setSaving(false);
+    
+    if (error) {
+      setMessage('Failed to save location.');
+    } else {
+      setMessage('Location saved successfully.');
+      await refreshDevices();
+    }
+    
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleGeolocation = () => {
+    if (!navigator.geolocation) {
+      setMessage('Geolocation is not supported by your browser.');
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLat(position.coords.latitude.toFixed(6));
+        setLon(position.coords.longitude.toFixed(6));
+      },
+      () => {
+        setMessage('Failed to get location. Please allow location access or enter manually.');
+      }
+    );
+  };
+
+  if (!deviceId) return null;
+
+  return (
+    <div className="card" style={{ marginBottom: '20px' }}>
+      <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
+        <div style={{
+            width: '38px', height: '38px', borderRadius: '10px',
+            backgroundColor: 'var(--accent-purple-bg)',
+            border: '1px solid var(--accent-purple-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          <MapPin size={18} color="var(--accent-purple)" />
+        </div>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>Device Location</h3>
+          <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Used for weather forecasting and rain warnings
+          </p>
+        </div>
+      </div>
+      
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Latitude</label>
+            <input type="number" step="any" placeholder="e.g. 40.7128" className="input" value={lat} onChange={e => setLat(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Longitude</label>
+            <input type="number" step="any" placeholder="e.g. -74.0060" className="input" value={lon} onChange={e => setLon(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Saving...' : 'Save Location'}
+          </button>
+          <button type="button" className="btn btn-outline" onClick={handleGeolocation}>
+            <Map size={16} /> Use My Location
+          </button>
+          {message && <span style={{ fontSize: '0.85rem', color: message.includes('Failed') ? 'var(--accent-red)' : 'var(--accent-green)' }}>{message}</span>}
+        </div>
+      </form>
+    </div>
+  );
+};
+
+// ─── Device Management Section ────────────────────────────────────────────────
+
+const DeviceManagementSection: React.FC = () => {
+  const { device, deviceId, refreshDevices, setDeviceId, devices } = useDustZero();
+  const [name, setName] = useState(device?.device_name || '');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [isUnclaimModalOpen, setIsUnclaimModalOpen] = useState(false);
+  const [unclaiming, setUnclaiming] = useState(false);
+
+  useEffect(() => {
+    setName(device?.device_name || '');
+  }, [device?.device_name]);
+
+  const handleSaveName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deviceId) return;
+    setSaving(true);
+    setMessage('');
+    
+    const { error } = await supabase
+      .from('devices')
+      .update({ device_name: name.trim() || null })
+      .eq('device_id', deviceId);
+      
+    setSaving(false);
+    if (error) {
+      setMessage('Failed to save name.');
+    } else {
+      setMessage('Name saved successfully.');
+      await refreshDevices();
+    }
+    setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleUnclaim = async () => {
+    if (!deviceId) return;
+    setUnclaiming(true);
+    
+    const { error } = await supabase
+      .from('devices')
+      .update({ user_id: null })
+      .eq('device_id', deviceId);
+      
+    setUnclaiming(false);
+    setIsUnclaimModalOpen(false);
+    
+    if (!error) {
+      // Find another device to switch to
+      await refreshDevices();
+      const remainingDevices = devices.filter(d => d.device_id !== deviceId);
+      if (remainingDevices.length > 0) {
+        setDeviceId(remainingDevices[0].device_id);
+      } else {
+        setDeviceId('');
+      }
+    } else {
+      setMessage('Failed to unclaim device.');
+    }
+  };
+
+  if (!deviceId) return null;
+
+  return (
+    <div className="card" style={{ marginBottom: '20px' }}>
+      <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
+        <div style={{
+            width: '38px', height: '38px', borderRadius: '10px',
+            backgroundColor: 'var(--bg-elevated)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          <Settings2 size={18} color="var(--text-primary)" />
+        </div>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>Device Management</h3>
+          <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Rename or release this device
+          </p>
+        </div>
+      </div>
+      
+      <form onSubmit={handleSaveName} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Friendly Name</label>
+          <div className="flex items-center gap-3">
+            <input type="text" placeholder="e.g. Roof Panel" className="input" value={name} onChange={e => setName(e.target.value)} style={{ flex: 1 }} />
+            <button type="submit" className="btn btn-outline" disabled={saving}>
+              {saving ? 'Saving...' : 'Save Name'}
+            </button>
+          </div>
+          {message && !message.includes('unclaim') && <span style={{ fontSize: '0.85rem', color: message.includes('Failed') ? 'var(--accent-red)' : 'var(--accent-green)', display: 'block', marginTop: '6px' }}>{message}</span>}
+        </div>
+      </form>
+
+      <div style={{ padding: '16px', backgroundColor: 'var(--accent-red-bg)', borderRadius: '8px', border: '1px solid var(--accent-red-border)' }}>
+        <h4 style={{ margin: '0 0 4px 0', color: 'var(--accent-red)', fontSize: '0.9rem' }}>Danger Zone</h4>
+        <p style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          Releasing this device will remove it from your account. It will become claimable by anyone else who knows the device ID.
+        </p>
+        <button type="button" className="btn btn-danger btn-sm" onClick={() => setIsUnclaimModalOpen(true)} disabled={unclaiming}>
+          <Trash2 size={14} /> Release Device
+        </button>
+        {message && message.includes('unclaim') && <span style={{ fontSize: '0.85rem', color: 'var(--accent-red)', marginLeft: '12px' }}>{message}</span>}
+      </div>
+
+      <ConfirmationModal
+        isOpen={isUnclaimModalOpen}
+        title="Release Device?"
+        description={`Are you sure you want to release ${device?.device_name || deviceId}? This will remove it from your account and make it claimable by others.`}
+        confirmLabel="Release Device"
+        isDestructive={true}
+        onConfirm={handleUnclaim}
+        onCancel={() => setIsUnclaimModalOpen(false)}
+      />
+    </div>
+  );
+};
+
 // ─── Device Settings Section ──────────────────────────────────────────────────
 
 const DeviceSettingsSection: React.FC = () => {
@@ -415,6 +649,175 @@ const NotificationsSection: React.FC = () => {
   );
 };
 
+
+// ─── Public Share Section ───────────────────────────────────────────────────────
+
+const PublicShareSection: React.FC = () => {
+  const { device, deviceId, refreshDevices } = useDustZero();
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const toggleShare = async () => {
+    if (!deviceId || !device) return;
+    setLoading(true);
+    
+    const isNowPublic = !device.is_public;
+    // Generate a random slug if making public, else null
+    const newSlug = isNowPublic ? Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10) : null;
+    
+    await supabase.from('devices').update({
+      is_public: isNowPublic,
+      public_slug: newSlug
+    }).eq('device_id', deviceId);
+    
+    await refreshDevices();
+    setLoading(false);
+  };
+
+  const shareUrl = device?.is_public && device.public_slug 
+    ? `${window.location.origin}/share/${device.public_slug}`
+    : '';
+
+  const copyToClipboard = () => {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!deviceId) return null;
+
+  return (
+    <div className="card" style={{ marginBottom: '20px' }}>
+      <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
+        <div style={{
+            width: '38px', height: '38px', borderRadius: '10px',
+            backgroundColor: 'var(--accent-blue-bg)',
+            border: '1px solid var(--accent-blue-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          <Share2 size={18} color="var(--accent-blue)" />
+        </div>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>Public Read-Only Link</h3>
+          <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Share live device data without granting control
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '16px', borderBottom: device?.is_public ? '1px solid var(--border-subtle)' : 'none', marginBottom: device?.is_public ? '16px' : '0' }}>
+        <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Enable public sharing</span>
+        <button 
+          onClick={toggleShare} 
+          disabled={loading}
+          style={{
+            width: '44px', height: '24px', borderRadius: '12px', border: 'none',
+            backgroundColor: device?.is_public ? 'var(--accent-green)' : 'var(--bg-elevated)',
+            cursor: 'pointer', position: 'relative', transition: 'background-color 0.2s'
+          }}
+        >
+          <div style={{
+            width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#fff',
+            position: 'absolute', top: '2px', left: device?.is_public ? '22px' : '2px', transition: 'left 0.2s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+          }} />
+        </button>
+      </div>
+
+      {device?.is_public && (
+        <div className="animate-slide-up">
+          <div style={{ padding: '12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '8px', border: '1px dashed var(--border-medium)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input type="text" readOnly value={shareUrl} className="input" style={{ flex: 1, border: 'none', backgroundColor: 'transparent', padding: 0 }} />
+            <button className="btn btn-outline btn-sm" onClick={copyToClipboard}>
+              {copied ? 'Copied!' : <><Copy size={14} /> Copy</>}
+            </button>
+            <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
+              <ExternalLink size={14} />
+            </a>
+          </div>
+          <div style={{ padding: '12px', backgroundColor: 'var(--accent-amber-bg)', border: '1px solid var(--accent-amber-border)', borderRadius: '8px', color: 'var(--accent-amber)', fontSize: '0.85rem' }}>
+            <strong>Warning:</strong> Anyone with this link can view live and historical data for this device. They cannot control the device or access other devices on your account. Disabling sharing will immediately invalidate the current link.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Firmware Section ─────────────────────────────────────────────────────────
+
+const FirmwareSection: React.FC = () => {
+  const { device, deviceId } = useDustZero();
+  const [latestRelease, setLatestRelease] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchFirmware = async () => {
+      const { data } = await supabase
+        .from('firmware_releases')
+        .select('*')
+        .eq('is_latest', true)
+        .maybeSingle();
+      if (data) setLatestRelease(data);
+    };
+    fetchFirmware();
+  }, []);
+
+  if (!deviceId) return null;
+
+  const currentVersion = device?.firmware_version || 'Unknown';
+  const hasUpdate = latestRelease && currentVersion !== 'Unknown' && latestRelease.version !== currentVersion;
+
+  return (
+    <div className="card" style={{ marginBottom: '20px' }}>
+      <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
+        <div style={{
+            width: '38px', height: '38px', borderRadius: '10px',
+            backgroundColor: 'var(--bg-elevated)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          <Cpu size={18} color="var(--text-primary)" />
+        </div>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>Firmware Info</h3>
+          <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            System software details
+          </p>
+        </div>
+      </div>
+
+      <div style={{ padding: '16px', backgroundColor: 'var(--bg-elevated)', borderRadius: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Current Version:</span>
+          <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{currentVersion}</span>
+        </div>
+        {latestRelease && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Latest Available:</span>
+            <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{latestRelease.version}</span>
+          </div>
+        )}
+      </div>
+
+      {hasUpdate && latestRelease && (
+        <div style={{ padding: '12px', backgroundColor: 'var(--accent-blue-bg)', borderRadius: '8px', border: '1px solid var(--accent-blue-border)' }}>
+          <div style={{ fontSize: '0.85rem', color: 'var(--accent-blue)', fontWeight: 600, marginBottom: '4px' }}>
+            Update Available!
+          </div>
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+            A newer firmware ({latestRelease.version}) is available. Please reflash your ESP32 with the latest release to get new features and fixes.
+          </p>
+          {latestRelease.release_notes && (
+             <div style={{ marginTop: '8px', padding: '8px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '4px', fontSize: '0.8rem', fontFamily: 'monospace', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}>
+                {latestRelease.release_notes}
+             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Appearance Section ───────────────────────────────────────────────────────
 
@@ -561,6 +964,10 @@ const Settings: React.FC = () => {
       <div style={{ display: 'grid', gap: '20px', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))' }}>
         <div>
           <DeviceConnectionSection />
+          <DeviceManagementSection />
+          <FirmwareSection />
+          <DeviceLocationSection />
+          <PublicShareSection />
           <BaselineCalibrationSection />
           <NotificationsSection />
         </div>

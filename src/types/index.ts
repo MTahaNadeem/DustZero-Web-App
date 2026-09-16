@@ -17,6 +17,19 @@ export interface Device {
   sunlight_level: SunlightLevel;
   cleaning_state: CleaningState;
   updated_at: string; // ISO timestamp
+  latitude?: number;
+  longitude?: number;
+  device_name?: string;
+  is_public: boolean;
+  public_slug?: string;
+  firmware_version?: string;
+}
+
+export interface FirmwareRelease {
+  version: string;
+  released_at: string;
+  release_notes: string;
+  is_latest: boolean;
 }
 
 export interface DeviceHistory {
