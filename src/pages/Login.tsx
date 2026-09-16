@@ -8,6 +8,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -58,6 +59,11 @@ const Login: React.FC = () => {
         // Show the resend action for post-signup
         setShowResendAction(true);
       } else {
+        if (!rememberMe) {
+          sessionStorage.setItem('dustzero_no_persist', 'true');
+        } else {
+          sessionStorage.removeItem('dustzero_no_persist');
+        }
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -201,6 +207,21 @@ const Login: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {!isSignUp && (
+            <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', marginTop: '-0.5rem', marginBottom: '1.25rem', gap: '0.5rem' }}>
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{ width: 'auto', cursor: 'pointer', margin: 0, accentColor: 'var(--primary-color, #3b82f6)' }}
+              />
+              <label htmlFor="rememberMe" style={{ margin: 0, cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'normal', color: 'var(--text-secondary)' }}>
+                Remember Me
+              </label>
+            </div>
+          )}
 
           <button 
             type="submit" 
