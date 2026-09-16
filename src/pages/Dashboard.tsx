@@ -267,10 +267,39 @@ const WeatherCard = () => {
       setLoading(true);
       setError(false);
       try {
-        const res = await fetch(`/api/weather?lat=${device.latitude}&lon=${device.longitude}`);
-        if (!res.ok) throw new Error('Weather failed');
-        const data = await res.json();
-        setWeather(data);
+        const { data, error } = await supabase.functions.invoke(`get-weather?lat=${device.latitude}&lon=${device.longitude}`, {
+          method: 'GET'
+        });
+        
+        if (error) throw error;
+        
+        let rainExpectedInHours = null;
+        let willBeClear = false;
+
+        if (data.next_12_hours && Array.isArray(data.next_12_hours)) {
+          // Find first block where pop >= 50 or conditions include 'Rain'
+          const rainBlock = data.next_12_hours.find((b: any) => b.pop >= 50 || b.conditions.toLowerCase().includes('rain'));
+          
+          if (rainBlock) {
+            const blockTime = new Date(rainBlock.dt * 1000);
+            const now = new Date();
+            const diffHours = Math.max(1, Math.round((blockTime.getTime() - now.getTime()) / (1000 * 60 * 60)));
+            rainExpectedInHours = diffHours;
+          } else {
+            willBeClear = true;
+          }
+        }
+
+        setWeather({
+          current: {
+            temp: data.current.temp,
+            description: data.current.description
+          },
+          forecast: {
+            rainExpectedInHours,
+            willBeClear
+          }
+        });
       } catch (err) {
         console.error('Failed to fetch weather', err);
         setError(true);
@@ -328,7 +357,7 @@ const WeatherCard = () => {
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
-                <MapPin size={12} /> {weather.location}
+                <MapPin size={12} /> {Math.abs(device.latitude).toFixed(2)}°{device.latitude >= 0 ? 'N' : 'S'}, {Math.abs(device.longitude).toFixed(2)}°{device.longitude >= 0 ? 'E' : 'W'}
               </div>
             </div>
           </div>
@@ -349,7 +378,7 @@ const WeatherCard = () => {
                   <Sun size={16} /> Clear Skies
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                  Clear skies expected for the next 12 hours — good conditions for automatic cleaning.
+                  Clear skies for the next 12 hours — good conditions for automatic cleaning.
                 </div>
               </div>
             ) : (
