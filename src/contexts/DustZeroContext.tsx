@@ -17,6 +17,7 @@ interface DustZeroContextType {
   deviceId: string;
   setDeviceId: (id: string) => void;
   refreshDevices: () => Promise<void>;
+  isDevicesLoading: boolean;
 }
 
 const DustZeroContext = createContext<DustZeroContextType | undefined>(undefined);
@@ -26,6 +27,7 @@ export const OFFLINE_TIMEOUT_MS = 15000; // 15 seconds (firmware updates ~every 
 export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isDevicesLoading, setIsDevicesLoading] = useState(true);
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [deviceId, setDeviceIdState] = useState(localStorage.getItem('dustzero-device-id') || '');
@@ -123,11 +125,16 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [addAlert, setIsManualCleaning]);
 
   const fetchDevices = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setIsDevicesLoading(false);
+      return;
+    }
     
+    setIsDevicesLoading(true);
     const { data, error } = await supabase.from('devices').select('*').eq('user_id', user.id);
     if (error) {
       console.error("Error fetching devices:", error);
+      setIsDevicesLoading(false);
       return;
     }
     if (data && data.length > 0) {
@@ -142,6 +149,7 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setDevices([]);
       setDevice(null);
     }
+    setIsDevicesLoading(false);
   }, [user, deviceId, setDeviceId]);
 
   // Fetch devices when user changes
@@ -328,7 +336,8 @@ export const DustZeroProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       dismissAlert,
       deviceId,
       setDeviceId,
-      refreshDevices: fetchDevices
+      refreshDevices: fetchDevices,
+      isDevicesLoading
     }}>
       {children}
     </DustZeroContext.Provider>
