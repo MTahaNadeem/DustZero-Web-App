@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FunctionsHttpError, FunctionsFetchError, FunctionsRelayError } from '@supabase/supabase-js';
 import { useDustZero } from '../contexts/DustZeroContext';
 import { OfflineBanner } from '../components/StatusBanner';
 import { MetricCard } from '../components/MetricCard';
@@ -266,7 +267,10 @@ const WeatherCard = () => {
       return;
     }
     
-    if (isNaN(device.latitude) || isNaN(device.longitude) || device.latitude < -90 || device.latitude > 90 || device.longitude < -180 || device.longitude > 180) {
+    const lat = Number(device.latitude);
+    const lon = Number(device.longitude);
+
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
       setWeather(null);
       setErrorMsg('INVALID_LOCATION');
       return;
@@ -278,25 +282,75 @@ const WeatherCard = () => {
     setErrorMsg(null);
     
     try {
-      console.log('WEATHER: Weather request started');
-      console.log(`WEATHER: Weather coordinates: ${device.latitude}, ${device.longitude}`);
-      console.log('WEATHER: Calling get-weather');
+      console.log('[Weather] Calling get-weather');
+      console.log(`[Weather] Coordinates: ${lat}, ${lon}`);
 
       const { data, error } = await supabase.functions.invoke('get-weather', {
         method: 'POST',
-        body: { lat: device.latitude, lon: device.longitude }
+        body: { lat, lon }
       });
 
-      console.log('WEATHER: get-weather response received');
+      console.log('[Weather] get-weather response received');
 
       if (error) {
-        if (error.status === 404 || error.status === 503 || error.status === 502) throw new Error('EDGE_FUNCTION_UNAVAILABLE');
-        if (error.status === 401 || error.status === 403) throw new Error('OPENWEATHER_UNAUTHORIZED');
-        if (error.status === 429) throw new Error('OPENWEATHER_RATE_LIMIT');
+        // Classify error by type using Supabase SDK error classes
+        if (error instanceof FunctionsFetchError) {
+          // The function could not be reached at all — likely not deployed or network issue
+          console.error('[Weather] FunctionsFetchError — function unreachable:', error.message);
+          throw new Error('EDGE_FUNCTION_UNAVAILABLE');
+        }
+        if (error instanceof FunctionsRelayError) {
+          // Network issue between client and Supabase relay
+          console.error('[Weather] FunctionsRelayError — relay error:', error.message);
+          throw new Error('EDGE_FUNCTION_UNAVAILABLE');
+        }
+        if (error instanceof FunctionsHttpError) {
+          // Function was reached and returned a non-2xx HTTP response
+          const status = error.status;
+          console.error('[Weather] FunctionsHttpError:', { status, message: error.message });
+
+          // Try to read the structured body with `code` field
+          let errorBody: { error?: string; code?: string } | null = null;
+          try {
+            errorBody = await error.context.json();
+          } catch {
+            // Response body may not be readable
+          }
+          console.error('[Weather] Function response body:', errorBody);
+          console.error(`[Weather] Function response status: ${status}, code: ${errorBody?.code}`);
+
+          const bodyCode = errorBody?.code;
+
+          if (bodyCode === 'OPENWEATHER_UNAUTHORIZED' || status === 401 || status === 403) {
+            throw new Error('OPENWEATHER_UNAUTHORIZED');
+          }
+          if (bodyCode === 'OPENWEATHER_RATE_LIMIT' || status === 429) {
+            throw new Error('OPENWEATHER_RATE_LIMIT');
+          }
+          if (bodyCode === 'MISSING_COORDINATES' || bodyCode === 'INVALID_COORDINATES' || status === 400) {
+            throw new Error('INVALID_LOCATION');
+          }
+          if (bodyCode === 'API_KEY_NOT_CONFIGURED') {
+            throw new Error('OPENWEATHER_UNAUTHORIZED');
+          }
+          if (bodyCode === 'OPENWEATHER_UPSTREAM_ERROR' || bodyCode === 'OPENWEATHER_EMPTY_RESPONSE' || status === 502) {
+            throw new Error('EDGE_FUNCTION_UNAVAILABLE');
+          }
+          if (status === 404 || status === 503) {
+            throw new Error('EDGE_FUNCTION_UNAVAILABLE');
+          }
+          throw new Error('EDGE_FUNCTION_ERROR');
+        }
+
+        // Unknown error type
+        console.error('[Weather] Unknown error type:', error);
         throw new Error('EDGE_FUNCTION_ERROR');
       }
 
+      console.log('[Weather] Function response data:', { hasData: !!data, hasCurrent: !!data?.current });
+
       if (!data || !data.current || typeof data.current.temp === 'undefined') {
+        console.error('[Weather] Invalid response structure:', data);
         throw new Error('WEATHER_RESPONSE_INVALID');
       }
 
@@ -318,7 +372,7 @@ const WeatherCard = () => {
         }
       }
 
-      console.log('WEATHER: Weather response parsed');
+      console.log('[Weather] Response parsed successfully');
       setWeather({
         current: {
           temp: data.current.temp,
@@ -331,7 +385,7 @@ const WeatherCard = () => {
         }
       });
     } catch (err: any) {
-      console.error('WEATHER: Failed to fetch weather', err);
+      console.error('[Weather] Fetch failed:', err?.message);
       const knownErrors = ['EDGE_FUNCTION_UNAVAILABLE', 'EDGE_FUNCTION_ERROR', 'OPENWEATHER_UNAUTHORIZED', 'OPENWEATHER_RATE_LIMIT', 'WEATHER_RESPONSE_INVALID', 'INVALID_LOCATION'];
       if (err.message && knownErrors.includes(err.message)) {
         setErrorMsg(err.message);
@@ -352,14 +406,22 @@ const WeatherCard = () => {
 
   const getErrorDisplay = (code: string) => {
     switch (code) {
-      case 'INVALID_LOCATION': return 'Invalid device location';
-      case 'EDGE_FUNCTION_UNAVAILABLE': return 'The Supabase Edge Function could not be reached or is unavailable.';
-      case 'EDGE_FUNCTION_ERROR': return 'The Edge Function returned an error.';
-      case 'OPENWEATHER_UNAUTHORIZED': return 'Backend reports an OpenWeather authorization/key problem.';
-      case 'OPENWEATHER_RATE_LIMIT': return 'Backend reports rate limiting.';
-      case 'WEATHER_RESPONSE_INVALID': return 'The backend returned unexpected/malformed weather data.';
-      case 'NETWORK_ERROR': return 'Browser/network request failed. Please check your connection.';
-      default: return 'Something went wrong.';
+      case 'INVALID_LOCATION':
+        return 'Invalid device location. Please check your coordinates in Settings.';
+      case 'EDGE_FUNCTION_UNAVAILABLE':
+        return 'Weather service is temporarily unavailable. Please try again later.';
+      case 'EDGE_FUNCTION_ERROR':
+        return 'Weather service encountered an error. Please try again.';
+      case 'OPENWEATHER_UNAUTHORIZED':
+        return 'Weather API authorization failed. Please check the weather service configuration.';
+      case 'OPENWEATHER_RATE_LIMIT':
+        return 'Weather API rate limit reached. Please wait a few minutes and try again.';
+      case 'WEATHER_RESPONSE_INVALID':
+        return 'Received unexpected data from the weather service. Please try again.';
+      case 'NETWORK_ERROR':
+        return 'Unable to reach weather service. Please check your internet connection.';
+      default:
+        return 'Unable to load weather data. Please try again.';
     }
   };
 
