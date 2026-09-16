@@ -228,7 +228,7 @@ const Navigation = () => {
 // ✨ App Content ✨
 const AppContent = () => {
   const navigate = useNavigate();
-  const { devices, user, isInitializing, isDevicesLoading } = useDustZero();
+  const { devices, user, isInitializing, hasFetchedDevices } = useDustZero();
 
   useEffect(() => {
     // Catch auth hashes (e.g., from old emails that went to root instead of /auth/callback)
@@ -241,10 +241,10 @@ const AppContent = () => {
 
   useEffect(() => {
     // Redirect to onboarding if authenticated but no devices
-    if (!isInitializing && !isDevicesLoading && user && devices.length === 0 && window.location.pathname !== '/onboarding' && !window.location.pathname.startsWith('/share/')) {
+    if (!isInitializing && hasFetchedDevices && user && devices.length === 0 && window.location.pathname !== '/onboarding' && !window.location.pathname.startsWith('/share/')) {
       navigate('/onboarding', { replace: true });
     }
-  }, [user, devices, isInitializing, isDevicesLoading, navigate]);
+  }, [user, devices, isInitializing, hasFetchedDevices, navigate]);
 
   return (
     <Routes>
