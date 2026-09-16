@@ -29,7 +29,7 @@ export const exportElementToPDF = async (
       scale: 2, // High resolution
       useCORS: true,
       logging: false,
-      backgroundColor: '#1E1E1E', // Match dark theme roughly
+      backgroundColor: '#FAFAFA', // Light background
     });
 
     const imgData = canvas.toDataURL('image/png');
@@ -56,25 +56,25 @@ export const exportElementToPDF = async (
         pdf.addPage();
       }
 
-      pdf.setFillColor(30, 30, 30);
-      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F'); // Dark background
+      pdf.setFillColor(250, 250, 250); // Light background (#FAFAFA)
+      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F'); 
       
       const currentAvailableHeight = isFirstPage ? pdfHeight - margin - pageHeaderHeight : pdfHeight - margin * 2;
       const currentYOffset = isFirstPage ? margin + pageHeaderHeight : margin;
 
       if (isFirstPage) {
         // Add header
-        pdf.setTextColor(255, 255, 255);
+        pdf.setTextColor(17, 24, 39); // Dark navy/charcoal (#111827)
         pdf.setFontSize(22);
         pdf.text('DustZero Report', margin, margin + 10);
         
         pdf.setFontSize(12);
-        pdf.setTextColor(150, 150, 150);
+        pdf.setTextColor(107, 114, 128); // Medium gray (#6B7280)
         pdf.text(title, margin, margin + 18);
         pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, margin + 24);
         
         // Add separator
-        pdf.setDrawColor(60, 60, 60);
+        pdf.setDrawColor(229, 231, 235); // Light gray border (#E5E7EB)
         pdf.line(margin, margin + 30, pdfWidth - margin, margin + 30);
       }
 
@@ -83,26 +83,25 @@ export const exportElementToPDF = async (
       pdf.addImage(imgData, 'PNG', margin, currentYOffset - yPosition, innerWidth, totalImgHeight);
       
       // Since addImage doesn't clip automatically in all viewers, we draw a rectangle over the bottom and top bounds to mask it if necessary.
-      // Wait, jsPDF addImage doesn't clip. We need to draw over the margins to mask out the overflowing image parts.
       // Top mask
-      pdf.setFillColor(30, 30, 30);
+      pdf.setFillColor(250, 250, 250);
       pdf.rect(0, 0, pdfWidth, currentYOffset, 'F');
       
       // If it's first page, we need to re-draw the header over the mask
       if (isFirstPage) {
-        pdf.setTextColor(255, 255, 255);
+        pdf.setTextColor(17, 24, 39);
         pdf.setFontSize(22);
         pdf.text('DustZero Report', margin, margin + 10);
         pdf.setFontSize(12);
-        pdf.setTextColor(150, 150, 150);
+        pdf.setTextColor(107, 114, 128);
         pdf.text(title, margin, margin + 18);
         pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, margin + 24);
-        pdf.setDrawColor(60, 60, 60);
+        pdf.setDrawColor(229, 231, 235);
         pdf.line(margin, margin + 30, pdfWidth - margin, margin + 30);
       }
 
       // Bottom mask
-      pdf.setFillColor(30, 30, 30);
+      pdf.setFillColor(250, 250, 250);
       pdf.rect(0, currentYOffset + currentAvailableHeight, pdfWidth, pdfHeight - (currentYOffset + currentAvailableHeight), 'F');
 
       remainingHeight -= currentAvailableHeight;

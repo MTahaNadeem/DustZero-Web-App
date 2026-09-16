@@ -615,42 +615,42 @@ const Analytics: React.FC = () => {
           display: 'none', 
           width: '800px', 
           padding: '30px', 
-          backgroundColor: '#1E1E1E',
-          color: '#fff',
+          backgroundColor: '#FAFAFA',
+          color: '#111827',
           fontFamily: 'Inter, sans-serif'
         }}
       >
         <div style={{ marginBottom: '24px' }}>
-          <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', color: '#FFF' }}>Overview Summary</h2>
-          <div style={{ fontSize: '13px', color: '#AAA' }}>Data coverage: {stats.startTime} &rarr; {stats.endTime} ({stats.totalSnapshots} snapshots)</div>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', color: '#111827' }}>Overview Summary</h2>
+          <div style={{ fontSize: '13px', color: '#6B7280' }}>Data coverage: {stats.startTime} &rarr; {stats.endTime} ({stats.totalSnapshots} snapshots)</div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '30px' }}>
-           <div style={{ backgroundColor: '#2A2A2A', padding: '16px', borderRadius: '12px' }}>
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>Avg / Peak Power</div>
+           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', padding: '16px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>Avg / Peak Power</div>
               <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{stats.avgPower.toFixed(2)} / {stats.peakPower.toFixed(2)} W</div>
            </div>
-           <div style={{ backgroundColor: '#2A2A2A', padding: '16px', borderRadius: '12px' }}>
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>Avg / Peak Temp</div>
+           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', padding: '16px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>Avg / Peak Temp</div>
               <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{stats.avgTemp.toFixed(1)} / {stats.peakTemp.toFixed(1)} &deg;C</div>
            </div>
-           <div style={{ backgroundColor: '#2A2A2A', padding: '16px', borderRadius: '12px' }}>
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>Avg Voltage / Current</div>
+           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', padding: '16px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>Avg Voltage / Current</div>
               <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{stats.avgVoltage.toFixed(2)}V / {stats.avgCurrent.toFixed(2)}A</div>
            </div>
-           <div style={{ backgroundColor: '#2A2A2A', padding: '16px', borderRadius: '12px' }}>
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>Total Cleanings</div>
+           <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', padding: '16px', borderRadius: '12px' }}>
+              <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>Total Cleanings</div>
               <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{stats.cleaningCount} cycles</div>
            </div>
         </div>
 
-        <div style={{ marginBottom: '30px', backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+        <div style={{ marginBottom: '30px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', padding: '20px', borderRadius: '12px' }}>
           <h3 style={{ marginTop: 0, marginBottom: '8px', fontSize: '16px' }}>Uptime & Reliability</h3>
           <div style={{ fontSize: '14px', marginBottom: '16px' }}>
             Device was online and reporting <strong>{stats.uptimePercentage.toFixed(1)}%</strong> of the selected period.
           </div>
           {stats.downtimeEvents.length > 0 ? (
-            <div style={{ fontSize: '13px', color: '#AAA' }}>
+            <div style={{ fontSize: '13px', color: '#4B5563' }}>
               <strong>Detected Offline Windows (&gt;6 min gap):</strong>
               <ul style={{ paddingLeft: '20px', marginTop: '8px' }}>
                 {stats.downtimeEvents.slice(0, 5).map((e, i) => (
@@ -660,73 +660,73 @@ const Analytics: React.FC = () => {
               </ul>
             </div>
           ) : (
-            <div style={{ fontSize: '13px', color: '#10b981' }}>No offline windows detected.</div>
+            <div style={{ fontSize: '13px', color: '#059669' }}>No offline windows detected.</div>
           )}
         </div>
         
-        <div style={{ marginBottom: '30px', backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+        <div style={{ marginBottom: '30px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', padding: '20px', borderRadius: '12px' }}>
           <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px' }}>Power Output (W)</h3>
           <div style={{ height: '240px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" vertical={false} />
-                <XAxis dataKey="timeLabel" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
-                <YAxis stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
-                <Area isAnimationActive={false} type="monotone" dataKey="solar_power" stroke="var(--accent-amber)" fill="var(--accent-amber)" fillOpacity={0.2} strokeWidth={2} dot={{ r: 1, fill: "var(--accent-amber)" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                <XAxis dataKey="timeLabel" stroke="#9CA3AF" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                <YAxis stroke="#9CA3AF" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                <Area isAnimationActive={false} type="monotone" dataKey="solar_power" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.15} strokeWidth={2} dot={{ r: 1, fill: "#F59E0B" }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div style={{ marginBottom: '30px', backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+        <div style={{ marginBottom: '30px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', padding: '20px', borderRadius: '12px' }}>
           <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px' }}>Voltage (V) & Current (A)</h3>
           <div style={{ height: '240px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" vertical={false} />
-                <XAxis dataKey="timeLabel" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
-                <YAxis yAxisId="left" stroke="#3b82f6" tick={{ fill: '#3b82f6', fontSize: 12 }} />
-                <YAxis yAxisId="right" orientation="right" stroke="#10b981" tick={{ fill: '#10b981', fontSize: 12 }} />
-                <Line isAnimationActive={false} yAxisId="left" type="monotone" dataKey="solar_voltage" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="solar_current" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                <XAxis dataKey="timeLabel" stroke="#9CA3AF" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                <YAxis yAxisId="left" stroke="#2563EB" tick={{ fill: '#2563EB', fontSize: 12 }} />
+                <YAxis yAxisId="right" orientation="right" stroke="#059669" tick={{ fill: '#059669', fontSize: 12 }} />
+                <Line isAnimationActive={false} yAxisId="left" type="monotone" dataKey="solar_voltage" stroke="#2563EB" strokeWidth={2} dot={false} />
+                <Line isAnimationActive={false} yAxisId="right" type="monotone" dataKey="solar_current" stroke="#059669" strokeWidth={2} dot={false} strokeDasharray="5 5" />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div style={{ marginBottom: '30px', backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+        <div style={{ marginBottom: '30px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', padding: '20px', borderRadius: '12px' }}>
           <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px' }}>Temperature (&deg;C)</h3>
           <div style={{ height: '200px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" vertical={false} />
-                <XAxis dataKey="timeLabel" stroke="#888" tick={{ fill: '#888', fontSize: 12 }} />
-                <YAxis stroke="#f43f5e" tick={{ fill: '#f43f5e', fontSize: 12 }} domain={['dataMin - 5', 'dataMax + 5']} />
-                <Line isAnimationActive={false} type="monotone" dataKey="temperature" stroke="#f43f5e" strokeWidth={2} dot={{ r: 1 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                <XAxis dataKey="timeLabel" stroke="#9CA3AF" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                <YAxis stroke="#E11D48" tick={{ fill: '#E11D48', fontSize: 12 }} domain={['dataMin - 5', 'dataMax + 5']} />
+                <Line isAnimationActive={false} type="monotone" dataKey="temperature" stroke="#E11D48" strokeWidth={2} dot={{ r: 1 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div style={{ marginBottom: '30px', display: 'flex', gap: '20px' }}>
-          <div style={{ flex: 1, backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+          <div style={{ flex: 1, backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', padding: '20px', borderRadius: '12px' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px' }}>Sunlight Distribution</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span>Strong</span> <span>{stats.sunlightDist.strong.toFixed(1)}%</span></div>
-               <div style={{ width: '100%', height: '6px', backgroundColor: '#444', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${stats.sunlightDist.strong}%`, height: '100%', backgroundColor: 'var(--accent-amber)' }} /></div>
+               <div style={{ width: '100%', height: '6px', backgroundColor: '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${stats.sunlightDist.strong}%`, height: '100%', backgroundColor: '#F59E0B' }} /></div>
                
                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span>Medium</span> <span>{stats.sunlightDist.medium.toFixed(1)}%</span></div>
-               <div style={{ width: '100%', height: '6px', backgroundColor: '#444', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${stats.sunlightDist.medium}%`, height: '100%', backgroundColor: '#fcd34d' }} /></div>
+               <div style={{ width: '100%', height: '6px', backgroundColor: '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${stats.sunlightDist.medium}%`, height: '100%', backgroundColor: '#FBBF24' }} /></div>
                
                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span>Weak</span> <span>{stats.sunlightDist.weak.toFixed(1)}%</span></div>
-               <div style={{ width: '100%', height: '6px', backgroundColor: '#444', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${stats.sunlightDist.weak}%`, height: '100%', backgroundColor: '#9ca3af' }} /></div>
+               <div style={{ width: '100%', height: '6px', backgroundColor: '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${stats.sunlightDist.weak}%`, height: '100%', backgroundColor: '#9CA3AF' }} /></div>
                
                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}><span>None (Night/Covered)</span> <span>{stats.sunlightDist.none.toFixed(1)}%</span></div>
-               <div style={{ width: '100%', height: '6px', backgroundColor: '#444', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${stats.sunlightDist.none}%`, height: '100%', backgroundColor: '#4b5563' }} /></div>
+               <div style={{ width: '100%', height: '6px', backgroundColor: '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: `${stats.sunlightDist.none}%`, height: '100%', backgroundColor: '#4B5563' }} /></div>
             </div>
           </div>
           
-          <div style={{ flex: 1, backgroundColor: '#2A2A2A', padding: '20px', borderRadius: '12px' }}>
+          <div style={{ flex: 1, backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', padding: '20px', borderRadius: '12px' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px' }}>Cleaning Cycles</h3>
             {cleaningEvents.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '180px', overflow: 'hidden' }}>
@@ -735,21 +735,21 @@ const Analytics: React.FC = () => {
                     ? ((ev.power_after - ev.power_before) / ev.power_before) * 100 
                     : 0;
                   return (
-                    <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', paddingBottom: '8px', borderBottom: '1px solid #444' }}>
+                    <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', paddingBottom: '8px', borderBottom: '1px solid #E5E7EB' }}>
                       <div>{format(new Date(ev.started_at), 'MMM d, HH:mm')}</div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ color: '#888' }}>{ev.power_before.toFixed(2)}W &rarr; {ev.power_after.toFixed(2)}W</span>
-                        <div style={{ color: efficiency > 0 ? '#10b981' : '#888', fontWeight: 'bold' }}>
+                        <span style={{ color: '#6B7280' }}>{ev.power_before.toFixed(2)}W &rarr; {ev.power_after.toFixed(2)}W</span>
+                        <div style={{ color: efficiency > 0 ? '#059669' : '#6B7280', fontWeight: 'bold' }}>
                           {efficiency > 0 ? '+' : ''}{efficiency.toFixed(1)}% efficiency
                         </div>
                       </div>
                     </div>
                   );
                 })}
-                {cleaningEvents.length > 5 && <div style={{ fontSize: '12px', color: '#888', textAlign: 'center' }}>+ {cleaningEvents.length - 5} more cycles</div>}
+                {cleaningEvents.length > 5 && <div style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center' }}>+ {cleaningEvents.length - 5} more cycles</div>}
               </div>
             ) : (
-              <div style={{ fontSize: '13px', color: '#AAA', fontStyle: 'italic', padding: '20px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: '13px', color: '#6B7280', fontStyle: 'italic', padding: '20px 0', textAlign: 'center' }}>
                 No cleaning cycles recorded in this period.
               </div>
             )}
